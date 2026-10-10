@@ -22,6 +22,6 @@
 	<key>NSSupportsAutomaticTermination</key><false/>
 	<key>NSSupportsSuddenTermination</key><false/>
 	<key>ITSAppUsesNonExemptEncryption</key><false/>
-	<key>NSHumanReadableCopyright</key><string>© 2026 JoshiChoi · MIT License · Apple 온디바이스 음성 인식</string>
+	<key>NSHumanReadableCopyright</key><string>© 2026 Jun Hyuk Choi · MIT License · Apple 온디바이스 음성 인식</string>
 </dict>
 </plist>

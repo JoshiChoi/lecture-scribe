@@ -3,4 +3,4 @@
 "CFBundleName" = "Arc Lecture Transcriber";
 "NSAudioCaptureUsageDescription" = "講義を文字起こしするために、このMacで再生されている音声を録音します。マイクは使用しません。";
 "NSSpeechRecognitionUsageDescription" = "録音した講義をこのMac上で文字起こしします。音声とテキストがこのMacの外に送信されることはありません。";
-"NSHumanReadableCopyright" = "© 2026 JoshiChoi · MITライセンス · Appleオンデバイス音声認識";
+"NSHumanReadableCopyright" = "© 2026 Jun Hyuk Choi · MITライセンス · Appleオンデバイス音声認識";

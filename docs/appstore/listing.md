@@ -12,7 +12,7 @@
 | Category | Productivity (secondary: Education) |
 | Price | Free |
 | Age rating | 4+ (answer "No/None" to every question) |
-| Copyright | 2026 JoshiChoi |
+| Copyright | 2026 Jun Hyuk Choi |
 | Support URL | https://github.com/WeldingArc/arc-lecture-transcriber/issues |
 | Marketing URL | https://github.com/WeldingArc/arc-lecture-transcriber |
 | Privacy Policy URL | https://github.com/WeldingArc/arc-lecture-transcriber/blob/main/PRIVACY.md |

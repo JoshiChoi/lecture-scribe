@@ -3,4 +3,4 @@
 "CFBundleName" = "Arc 강의 받아쓰기";
 "NSAudioCaptureUsageDescription" = "강의 영상의 말소리를 받아 적기 위해 이 Mac에서 재생되는 소리를 녹음합니다. 마이크는 사용하지 않습니다.";
 "NSSpeechRecognitionUsageDescription" = "녹음한 강의를 이 Mac 안에서 글로 받아 적습니다. 소리와 글은 밖으로 보내지 않습니다.";
-"NSHumanReadableCopyright" = "© 2026 JoshiChoi · MIT License · Apple 온디바이스 음성 인식";
+"NSHumanReadableCopyright" = "© 2026 Jun Hyuk Choi · MIT License · Apple 온디바이스 음성 인식";
