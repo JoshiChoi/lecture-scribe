@@ -166,6 +166,7 @@ final class SystemAudioSource: AudioSource {
     /// Start and stop run on the control queue, one after the other: a 정지 during start-up tears down
     /// whatever start created, instead of leaving the tap running after the save.
     func start() throws {
+        if Self.test.active || Self.test.dead > 0 || Self.test.playing { log("capture: test switches — \(Self.test)") }
         try control.sync {
             try startLocked()
             startStallCheck()
@@ -372,11 +373,16 @@ final class SystemAudioSource: AudioSource {
     /// macOS's does — all silence, or 110 ms pieces of silence between bits of sound; LECTURE_TEST_PLAYING=1 answers
     /// "another app plays sound"; LECTURE_TEST_TAP_HEALS=<n> ends that failure once n new taps were made;
     /// LECTURE_TEST_TAP_DEAD=<n> makes the next n new taps deliver nothing.
-    private struct TestTap {
+    private struct TestTap: CustomStringConvertible {
         let tone = env["LECTURE_TEST_TAP_TONE"] == "1", playing = env["LECTURE_TEST_PLAYING"] == "1"
         let silence = TestTap.spans("LECTURE_TEST_TAP_SILENCE"), chop = TestTap.spans("LECTURE_TEST_TAP_CHOP")
-        let dead = Int(env["LECTURE_TEST_TAP_DEAD"] ?? "") ?? 0, heals = Int(env["LECTURE_TEST_TAP_HEALS"] ?? "") ?? .max
+        let dead: Int = Int(env["LECTURE_TEST_TAP_DEAD"] ?? "") ?? 0
+        let heals: Int = Int(env["LECTURE_TEST_TAP_HEALS"] ?? "") ?? Int.max    // (one `let` with `dead` made this 0)
         var active: Bool { tone || !silence.isEmpty || !chop.isEmpty }
+        var description: String {
+            func list(_ r: [ClosedRange<Double>]) -> String { r.isEmpty ? "-" : r.map { "\(Int($0.lowerBound))-\(Int($0.upperBound))" }.joined(separator: ",") }
+            return "tone \(tone) playing \(playing) silence \(list(silence)) chop \(list(chop)) heals \(heals == Int.max ? "never" : String(heals)) dead \(dead)"
+        }
         static func spans(_ key: String) -> [ClosedRange<Double>] {
             (env[key] ?? "").split(separator: ",").compactMap { s in
                 let p = s.split(separator: "-").compactMap { Double($0) }
@@ -507,6 +513,7 @@ final class SystemAudioSource: AudioSource {
 
     /// Never blocks the caller: Core Audio calls can hang while macOS is busy with permissions.
     func stop() {
+        guard !stopped else { return }                     // (the session and the engine both stop it)
         stopped = true
         control.async { [self] in
             stallTimer?.cancel()
