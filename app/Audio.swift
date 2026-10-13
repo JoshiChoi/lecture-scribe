@@ -49,32 +49,128 @@ private func readProp<T>(_ obj: AudioObjectID, _ sel: AudioObjectPropertySelecto
     return withUnsafeMutablePointer(to: &value) { AudioObjectGetPropertyData(obj, &addr, 0, nil, &size, $0) }
 }
 
+/// macOS 26 sometimes keeps a tap running but fills it with silence while the lecture plays on — with AirPods, minutes
+/// in (2026-10-13: the tap's exact silence crept from a few percent to all of it in eight minutes and the transcript
+/// stopped; Apple's developer forums, thread 825780, report the same on a MacBook Air M2). Only a new tap brings the
+/// sound back. This watches what the tap delivers for the failing tap's signs: 5 s of exact silence, or 6 pieces of it
+/// (40 ms or longer) within 10 s — "heavy" when 40 % or more of those 10 s are exact silence (the failing tap went
+/// 10 → 30 → 55 %), "light" otherwise (could be the lecture's own gaps). A lecture's pauses don't look like that: in
+/// 80 minutes of earlier recordings, never more than 2 such pieces in 10 s and never 3 s of exact silence while it played.
+struct TapWatch {
+    enum Sign: CustomStringConvertible {
+        case silent(Double)                     // exact silence for this long (s)
+        case heavy(Int, Double), light(Int, Double)   // pieces of exact silence in 10 s, the share of those 10 s silent
+        var severe: Bool { if case .light = self { return false }; return true }
+        var description: String {
+            switch self {
+            case .silent(let s): String(format: "%.1f s of exact silence", s)
+            case .heavy(let n, let f), .light(let n, let f): String(format: "%d pieces of exact silence in 10 s (%.0f %% silent)", n, f * 100)
+            }
+        }
+    }
+    private var run = 0.0                  // exact silence so far (s)
+    private var clock = 0.0                // audio seen (s)
+    private var pieces: [Double] = []      // when each silent piece of 40 ms or more ended, within the last 10 s
+    private var slots = [(silent: Double, total: Double)](repeating: (0, 0), count: 20)   // the last 10 s, 0.5 s each
+    private var slot = 0
+
+    /// How much of the last 10 s was exact silence (0–1).
+    var silentShare: Double {
+        let total = slots.reduce(0) { $0 + $1.total }
+        return total > 0 ? slots.reduce(0) { $0 + $1.silent } / total : 0
+    }
+
+    /// One buffer from the tap: all exact silence or not, and how long it is.
+    mutating func add(silent: Bool, seconds: Double) -> Sign? {
+        clock += seconds
+        if slots[slot].total >= 0.5 { slot = (slot + 1) % slots.count; slots[slot] = (0, 0) }
+        slots[slot].total += seconds
+        if silent {
+            slots[slot].silent += seconds
+            run += seconds
+            return run >= 5 ? .silent(run) : nil
+        }
+        if run >= 0.04 { pieces.append(clock) }
+        run = 0
+        pieces.removeAll { clock - $0 > 10 }
+        guard pieces.count >= 6 else { return nil }
+        let share = silentShare
+        return share >= 0.4 ? .heavy(pieces.count, share) : .light(pieces.count, share)
+    }
+
+    mutating func reset() { self = TapWatch() }
+}
+
+/// Every sample exactly zero (−0 too): what the failing tap delivers. A playing lecture is never exactly zero for long.
+private func allSilent(_ abl: UnsafePointer<AudioBufferList>) -> Bool {
+    for b in UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: abl)) {
+        guard let d = b.mData else { continue }
+        let words = d.assumingMemoryBound(to: UInt32.self)
+        for i in 0..<Int(b.mDataByteSize) / 4 where words[i] & 0x7fff_ffff != 0 { return false }
+    }
+    return true
+}
+
+/// Is another app playing sound right now (its output running)? Tells the failing tap from a paused lecture.
+private func othersPlaying() -> Bool {
+    let system = AudioObjectID(kAudioObjectSystemObject)
+    var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyProcessObjectList, mScope: kAudioObjectPropertyScopeGlobal,
+                                          mElement: kAudioObjectPropertyElementMain)
+    var size: UInt32 = 0
+    guard AudioObjectGetPropertyDataSize(system, &addr, 0, nil, &size) == noErr, size > 0 else { return false }
+    var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+    guard AudioObjectGetPropertyData(system, &addr, 0, nil, &size, &ids) == noErr else { return false }
+    let me = getpid()
+    return ids.contains { id in
+        var pid: pid_t = 0, running: UInt32 = 0
+        return readProp(id, kAudioProcessPropertyPID, &pid) == noErr && pid != me
+            && readProp(id, kAudioProcessPropertyIsRunningOutput, &running) == noErr && running != 0
+    }
+}
+
 /// Everything this Mac plays (all apps), mixed to mono. No microphone; works with earphones.
 /// A tap-only private aggregate device is used so AirPods never switch to headset mode.
+/// Two queues: `control` makes, replaces and removes the tap (start, stop, an output change, a new tap, the stall
+/// check) — Core Audio is never asked to stop a device from `ioQueue`, which its I/O thread waits on (IO blocks are
+/// dispatched synchronously); `ioQueue` gets the audio and keeps the watch on it.
 final class SystemAudioSource: AudioSource {
     var onBuffer: ((AVAudioPCMBuffer?) -> Void)?
     var onProblem: ((String, String) -> Void)?
-    private var tapID = AudioObjectID(kAudioObjectUnknown)
+    private var tapID = AudioObjectID(kAudioObjectUnknown)         // control (the converter too: set while no audio flows)
     private var aggID = AudioObjectID(kAudioObjectUnknown)
     private var procID: AudioDeviceIOProcID?
     private var converter: AVAudioConverter?
+    private let control = DispatchQueue(label: "lecture.capture.control", qos: .userInitiated)
     private let ioQueue = DispatchQueue(label: "lecture.capture", qos: .userInteractive)
     private var listening = false
     private var listener: AudioObjectPropertyListenerBlock?
+    private var stallTimer: DispatchSourceTimer?                    // control
+    private var stallLadder = 0, stallNextAt: UInt64 = 0            // control
+    private var stallSince: UInt64?                                 // control: since when the tap hands nothing over while sound plays
+    private var testDead = SystemAudioSource.test.dead              // control
+    /// Seconds to wait before another new tap after 0, 1, 2, 3, 4+ new taps in a row that didn't help; for a tap that
+    /// hands nothing over, at most a minute (nothing is lost by making it again).
+    private static let waits: [Double] = [0, 15, 60, 300, 600], stallWaits: [Double] = [0, 15, 60]
     private static var outputDeviceAddress = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultOutputDevice,
                                                                        mScope: kAudioObjectPropertyScopeGlobal,
                                                                        mElement: kAudioObjectPropertyElementMain)
 
     deinit {                                   // safety net: never leave a tap or device behind
+        stallTimer?.cancel()
         if let l = listener {
-            AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &SystemAudioSource.outputDeviceAddress, ioQueue, l)
+            AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &SystemAudioSource.outputDeviceAddress, control, l)
         }
-        teardown()
+        teardown(drain: false)                 // (deinit may run on ioQueue itself)
     }
 
-    /// Start and stop run on the capture queue, one after the other: a 정지 during start-up tears down
+    /// Start and stop run on the control queue, one after the other: a 정지 during start-up tears down
     /// whatever start created, instead of leaving the tap running after the save.
-    func start() throws { try ioQueue.sync { try startLocked() } }
+    func start() throws {
+        try control.sync {
+            try startLocked()
+            startStallCheck()
+        }
+    }
 
     private func startLocked() throws {
         guard !stopped else { return }
@@ -110,6 +206,7 @@ final class SystemAudioSource: AudioSource {
         log("capture: tap format \(asbd.mSampleRate) Hz × \(asbd.mChannelsPerFrame)")
         conv.downmix = true
         converter = conv
+        callbacks = 0                                      // each tap logs its first callbacks
 
         st = AudioDeviceCreateIOProcIDWithBlock(&procID, aggID, ioQueue) { [weak self] _, input, _, _, _ in
             self?.process(input, inFormat)
@@ -125,6 +222,32 @@ final class SystemAudioSource: AudioSource {
     private var callbacks = 0
     private var stopped = false
 
+    // The watch on what the tap delivers (TapWatch) — ioQueue only, except where `control` resets it while no audio
+    // flows. The "is anything playing?" question goes to its own queue so the audio never waits for it.
+    private var watch = TapWatch()
+    private let checkQueue = DispatchQueue(label: "lecture.capture.check", qos: .utility)
+    private var checking = false, renewing = false     // a check is out; a new tap is asked for or being made
+    private var lastCheck: UInt64 = 0                  // uptime (ns) of the last "is anything playing?"
+    private var lastTap: UInt64 = 0                    // uptime (ns) the current tap was made (0: the first)
+    private var heardSound = 0.0                       // seconds of sound this session: the watch acts only after 1 s
+    private var userPaused = false                     // 일시정지: the session drops the audio, the watch rests
+    private var trial: (until: Double, troubled: Bool, probe: Bool, lightSeen: Bool, forSilence: Bool)?   // a new tap's first 15 s
+    private var probing = false                        // the new tap asked for is a probe (for a light sign)
+    private var forSilence = false                     // … or for silence: if it wasn't needed, the next needs longer
+    private var silentNeed = 5.0                       // seconds of exact silence that count as a sign (5, 10, 20)
+    private var silentNeedSince: UInt64 = 0            // when it was last raised
+    private var probeWait = 600.0                      // seconds between probes; doubles (to an hour) while light signs stay
+    private var ladder = 0                             // new taps in a row that didn't help
+    private var nextTapAt: UInt64 = 0                  // uptime: no new tap before this (grows with `ladder`)
+    private var nextProbeAt: UInt64 = 0                // uptime: no new tap for a light sign before this
+    private var severeSince: UInt64?                   // uptime: when the silence or heavy chop going on began
+    private var cleanFor = 0.0                         // seconds of audio since the last sign
+    private var told = false, soundSinceTold = 0.0     // the user was told the sound isn't coming in
+    private var renewals = 0
+    private var audioClock = 0.0                       // seconds of audio the tap delivered
+    private var lastDelivery: UInt64 = 0               // uptime (ns) of the last buffer
+    private var fillGap = false                        // after a new tap: the time the change took goes in as silence
+
     private func process(_ abl: UnsafePointer<AudioBufferList>, _ inFormat: AVAudioFormat) {
         guard !stopped else { return }
         callbacks += 1
@@ -135,6 +258,16 @@ final class SystemAudioSource: AudioSource {
               let out = AVAudioPCMBuffer(pcmFormat: floatFormat,
                                          frameCapacity: AVAudioFrameCount(Double(inBuf.frameLength) * sampleRate / inFormat.sampleRate) + 64)
         else { return }
+        let seconds = Double(inBuf.frameLength) / inFormat.sampleRate, now = DispatchTime.now().uptimeNanoseconds
+        if fillGap {                                    // a new tap: the moment the change took goes in as silence — never
+            fillGap = false                             // idle time (nothing plays → no samples, and none are recorded)
+            let gap = min(Double(now &- lastDelivery) / 1e9 - seconds, 5)
+            if lastDelivery > 0, gap > 0.02, let quiet = silence(seconds: gap) { onBuffer?(quiet) }
+        }
+        lastDelivery = now
+        let silent = Self.test.active ? Self.test.apply(abl, inFormat, at: audioClock, taps: renewals) : allSilent(abl)
+        audioClock += seconds
+        watchTap(silent: silent, seconds: seconds, now: now)
         var fed = false
         var err: NSError?
         _ = conv.convert(to: out, error: &err) { _, status in
@@ -146,25 +279,223 @@ final class SystemAudioSource: AudioSource {
         if let pcm = int16Buffer(from: out) { onBuffer?(pcm) }
     }
 
-    /// Switching speakers ↔ earphones changes the tap's format: rebuild the capture.
+    /// Each buffer: the tap's signs of trouble, and what to do about them. Nothing happens before the session has
+    /// heard sound (a first run without the permission gets zeros — the session's own notice covers that) or while
+    /// it is paused. Silence or heavy chop while another app plays sound → a new tap, the waits growing (0, 15 s,
+    /// 1, 5, 10 min) while new taps don't help; light chop (maybe the lecture's own gaps) → a probe at most every 10
+    /// minutes, every hour at most while the gaps stay, off the waits and never a notice. Each new tap is judged on its
+    /// first 15 s as a whole. The user is told only after 45 s of silence or heavy chop despite a new tap, and the
+    /// notice goes once 2 s of sound came through.
+    private func watchTap(silent: Bool, seconds: Double, now: UInt64) {
+        var sign = watch.add(silent: silent, seconds: seconds)
+        if case .silent(let s)? = sign, s < silentNeed { sign = nil }      // the lecture's own pauses can be long
+        if silentNeed > 5, Double(now &- silentNeedSince) / 1e9 >= 1800 { silentNeed = 5 }
+        let severe = sign?.severe == true
+        if !silent { heardSound += seconds; if told { soundSinceTold += seconds } }
+        cleanFor = severe ? 0 : cleanFor + seconds                 // seconds without silence or heavy chop
+        if severe, !userPaused { severeSince = severeSince ?? now } else if cleanFor >= 10 { severeSince = nil }
+        if cleanFor >= 300 { ladder = 0; nextTapAt = 0 }           // five clean minutes: start over
+        if told, !userPaused, soundSinceTold >= 10, watch.silentShare < 0.25 { resumed() }
+        if var t = trial {
+            if severe { t.troubled = true } else if sign != nil { t.lightSeen = true }
+            trial = t
+            guard audioClock >= t.until else { return }
+            trial = nil
+            if t.probe { probeWait = t.lightSeen ? min(probeWait * 2, 3600) : 600 }
+            if t.forSilence, !t.troubled { silentNeed = min(silentNeed * 2, 20); silentNeedSince = now }
+            if t.troubled { silentNeed = 5 }
+            if t.troubled {
+                ladder += 1
+                let wait = Self.waits[min(ladder, Self.waits.count - 1)]
+                nextTapAt = now + UInt64(wait * 1e9)
+                log("capture: new tap #\(renewals) didn't help — the next not before \(Int(wait)) s")
+            } else {
+                log("capture: new tap #\(renewals) " + (t.lightSeen ? "— the short gaps stay (the lecture's own?)" : "hears the sound"))
+                ladder = 0
+                nextTapAt = 0
+            }
+            return
+        }
+        guard let sign, heardSound >= 1, !userPaused, !checking, !renewing, Double(now &- lastCheck) / 1e9 >= 3 else { return }
+        let due = now >= (severe ? nextTapAt : max(nextTapAt, nextProbeAt))
+        let tell = severe && !told && ladder >= 1 && severeSince.map { Double(now &- $0) / 1e9 >= 45 } == true
+        guard due || tell else { return }
+        checking = true
+        lastCheck = now
+        let tap = lastTap
+        checkQueue.async { [weak self] in
+            let playing = Self.test.playing || othersPlaying()
+            self?.ioQueue.async { self?.decide(after: sign, playing: playing, due: due, tell: tell, tap: tap) }
+        }
+    }
+
+    private func decide(after sign: TapWatch.Sign, playing: Bool, due: Bool, tell: Bool, tap: UInt64) {
+        checking = false
+        guard playing, !stopped, !userPaused, trial == nil, !renewing, lastTap == tap else { return }   // nothing plays: a pause
+        if tell { tellNotComingIn() }
+        guard due else { return }
+        if !sign.severe { nextProbeAt = DispatchTime.now().uptimeNanoseconds + UInt64(probeWait * 1e9) }
+        probing = !sign.severe
+        if case .silent = sign { forSilence = true } else { forSilence = false }
+        renewing = true
+        renewals += 1
+        log("capture: \(sign) while another app plays sound → new tap #\(renewals)")
+        control.async { [weak self] in self?.renew() }
+    }
+
+    private func tellNotComingIn() {
+        guard !told, !stopped else { return }
+        told = true
+        soundSinceTold = 0
+        log("capture: told the user the sound isn't coming in")
+        onProblem?("capture_stopped", L("강의 소리가 들어오지 않습니다. 강의가 재생 중인데도 이 메시지가 계속 보이면 [정지]를 누른 뒤 다시 시작하십시오. 지금까지의 녹음은 저장됩니다.",
+                                        "The lecture's sound isn't coming in. If the lecture is playing and this message stays, click Stop, then start again. Everything recorded so far will be saved."))
+    }
+
+    private func resumed() {
+        guard told, !stopped else { return }
+        told = false
+        log("capture: told the user the sound is back")
+        onProblem?("capture_resumed", L("녹음을 다시 이어서 진행합니다.", "Recording has resumed."))
+    }
+
+    /// 일시정지 / 계속 (any thread): the session drops the audio meanwhile, so the watch rests.
+    func setUserPaused(_ on: Bool) {
+        ioQueue.async {
+            self.userPaused = on
+            if on { self.trial = nil; self.severeSince = nil } else { self.lastDelivery = DispatchTime.now().uptimeNanoseconds }
+        }
+    }
+
+    /// Tests, no sound needed: LECTURE_TEST_TAP_TONE=1 puts a tone in place of what the tap hears;
+    /// LECTURE_TEST_TAP_SILENCE / LECTURE_TEST_TAP_CHOP=<from>-<to>,… (seconds of the tap's audio) make the tap fail as
+    /// macOS's does — all silence, or 110 ms pieces of silence between bits of sound; LECTURE_TEST_PLAYING=1 answers
+    /// "another app plays sound"; LECTURE_TEST_TAP_HEALS=<n> ends that failure once n new taps were made;
+    /// LECTURE_TEST_TAP_DEAD=<n> makes the next n new taps deliver nothing.
+    private struct TestTap {
+        let tone = env["LECTURE_TEST_TAP_TONE"] == "1", playing = env["LECTURE_TEST_PLAYING"] == "1"
+        let silence = TestTap.spans("LECTURE_TEST_TAP_SILENCE"), chop = TestTap.spans("LECTURE_TEST_TAP_CHOP")
+        let dead = Int(env["LECTURE_TEST_TAP_DEAD"] ?? "") ?? 0, heals = Int(env["LECTURE_TEST_TAP_HEALS"] ?? "") ?? .max
+        var active: Bool { tone || !silence.isEmpty || !chop.isEmpty }
+        static func spans(_ key: String) -> [ClosedRange<Double>] {
+            (env[key] ?? "").split(separator: ",").compactMap { s in
+                let p = s.split(separator: "-").compactMap { Double($0) }
+                return p.count == 2 && p[0] <= p[1] ? p[0]...p[1] : nil
+            }
+        }
+        /// Rewrites the tap's buffer in place; true when it is (made) all silence.
+        func apply(_ abl: UnsafePointer<AudioBufferList>, _ format: AVAudioFormat, at t: Double, taps: Int) -> Bool {
+            let gone = taps < heals && (silence.contains { $0.contains(t) }
+                                        || (chop.contains { $0.contains(t) } && t.truncatingRemainder(dividingBy: 0.13) < 0.11))
+            let channels = format.isInterleaved ? Int(format.channelCount) : 1
+            for b in UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: abl)) {
+                guard let d = b.mData else { continue }
+                let f = d.assumingMemoryBound(to: Float.self)
+                for i in 0..<Int(b.mDataByteSize) / 4 {
+                    if gone { f[i] = 0 } else if tone { f[i] = Float(0.1 * sin(2 * .pi * 440 * (t + Double(i / channels) / format.sampleRate))) }
+                }
+            }
+            return gone || (!tone && allSilent(abl))
+        }
+    }
+    private static let test = TestTap()
+
+    /// A new tap in place of the old (control).
+    private func renew() {
+        guard !stopped else { ioQueue.async { self.renewing = false }; return }
+        teardown()
+        remake()
+    }
+
+    /// Makes the tap again after a teardown and puts it on trial. If it fails to start or hands nothing over, the
+    /// stall check tries again (control).
+    private func remake() {
+        let made = DispatchTime.now().uptimeNanoseconds
+        ioQueue.sync {                                     // no audio flows now: watch the new tap afresh
+            lastTap = made
+            watch.reset()
+            cleanFor = 0
+            fillGap = true
+            trial = (audioClock + 15, false, probing, false, forSilence)
+            probing = false
+            forSilence = false
+            renewing = false
+            soundSinceTold = 0                            // "resumed" needs sound from this tap
+        }
+        guard !stopped else { return }
+        do {
+            try startLocked()
+            if testDead > 0, let p = procID { testDead -= 1; AudioDeviceStop(aggID, p); log("capture: test: this tap hands nothing over") }
+        } catch {
+            log("capture: new tap failed: \(error) — the stall check tries again")
+        }
+    }
+
+    /// Every 5 s (control): a tap that hands nothing over at all — dead, or not made again — while another app plays
+    /// sound is made again on the same growing waits (the first after two checks in a row: playback may just be
+    /// starting), and after 30 s of that the user is told. The outage counts only while the session listens and sound
+    /// plays, and it runs on across new taps until one hands sound over.
+    private func startStallCheck() {
+        guard stallTimer == nil, !stopped else { return }
+        let t = DispatchSource.makeTimerSource(queue: control)
+        t.schedule(deadline: .now() + 5, repeating: 5)
+        t.setEventHandler { [weak self] in self?.stallCheck() }
+        t.resume()
+        stallTimer = t
+    }
+
+    private func stallCheck() {
+        guard !stopped else { return }
+        let (last, made, armed, paused) = ioQueue.sync { (lastDelivery, lastTap, heardSound >= 1, userPaused) }
+        let now = DispatchTime.now().uptimeNanoseconds                                  // (after the read: no wrap)
+        let quiet = Double(now &- max(last, made)) / 1e9
+        if last > made, quiet < 10 {                                                    // this tap hands sound over —
+            if Double(last &- made) / 1e9 >= 15 { stallSince = nil; stallLadder = 0 }   // for 15 s now: recovered
+            return
+        }
+        guard armed, !paused, Self.test.playing || othersPlaying() else { stallSince = nil; return }   // nothing to hand over
+        guard quiet >= 10 else { return }                                               // a new tap gets 10 s
+        let since = stallSince ?? now
+        stallSince = since
+        let outage = Double(now &- since) / 1e9
+        if outage >= 30 { ioQueue.sync { tellNotComingIn() } }
+        guard outage >= 5, now >= stallNextAt else { return }
+        stallLadder += 1
+        let wait = Self.stallWaits[min(stallLadder, Self.stallWaits.count - 1)]
+        stallNextAt = now + UInt64(wait * 1e9)
+        log("capture: nothing from the tap for \(Int(quiet)) s while another app plays sound → new tap (the next not before \(Int(wait)) s)")
+        ioQueue.sync { renewals += 1 }
+        teardown()
+        remake()
+    }
+
+    /// Switching speakers ↔ earphones changes the tap's format: rebuild the capture (control).
     private func listenForDeviceChanges() {
         guard !listening else { return }
         listening = true
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             guard let self, !self.stopped, self.aggID != AudioObjectID(kAudioObjectUnknown) else { return }
+            log("capture: output device changed → new tap")
             self.teardown()
-            do { try self.startLocked() } catch {
-                log("capture: rebuild after output change failed: \(error)")
+            self.remake()
+            if !self.stopped, self.aggID == AudioObjectID(kAudioObjectUnknown), self.ioQueue.sync(execute: { self.heardSound >= 1 }) {
+                self.ioQueue.sync { self.told = true; self.soundSinceTold = 0 }
                 self.onProblem?("capture_stopped", L("출력 장치가 바뀐 뒤 소리를 다시 가져오지 못했습니다. [정지]를 누른 뒤 다시 시작하십시오.", "Couldn't get the sound back after the output device changed. Click Stop, then start again."))
             }
         }
         listener = block
-        AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &SystemAudioSource.outputDeviceAddress, ioQueue, block)
+        AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &SystemAudioSource.outputDeviceAddress, control, block)
     }
 
-    private func teardown() {
+    /// Removes the tap and its device. `drain`: wait until no IO block is still running before the converter goes
+    /// (control; never from ioQueue).
+    private func teardown(drain: Bool = true) {
         if aggID != AudioObjectID(kAudioObjectUnknown) {
-            if let p = procID { AudioDeviceStop(aggID, p); AudioDeviceDestroyIOProcID(aggID, p) }
+            if let p = procID {
+                AudioDeviceStop(aggID, p)
+                if drain { ioQueue.sync {} }
+                AudioDeviceDestroyIOProcID(aggID, p)
+            }
             AudioHardwareDestroyAggregateDevice(aggID)
         }
         if tapID != AudioObjectID(kAudioObjectUnknown) { AudioHardwareDestroyProcessTap(tapID) }
@@ -177,12 +508,15 @@ final class SystemAudioSource: AudioSource {
     /// Never blocks the caller: Core Audio calls can hang while macOS is busy with permissions.
     func stop() {
         stopped = true
-        ioQueue.async { [self] in
+        control.async { [self] in
+            stallTimer?.cancel()
+            stallTimer = nil
             if let l = listener {
-                AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &SystemAudioSource.outputDeviceAddress, ioQueue, l)
+                AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &SystemAudioSource.outputDeviceAddress, control, l)
                 listener = nil
             }
             teardown()
+            log("capture: stopped")
         }
     }
 }

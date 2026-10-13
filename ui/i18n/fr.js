@@ -372,6 +372,7 @@
   "Open Folder": "Ouvrir le dossier",
   "APPEARANCE": "APPARENCE",
   "Couldn't get the sound back after the output device changed. Click Stop, then start again.": "Impossible de récupérer le son après le changement de périphérique de sortie. Cliquez sur Arrêter, puis recommencez.",
+  "The lecture's sound isn't coming in. If the lecture is playing and this message stays, click Stop, then start again. Everything recorded so far will be saved.": "Le son du cours n’arrive pas. Si le cours est en lecture et que ce message reste affiché, cliquez sur Arrêter, puis recommencez. Tout ce qui a été enregistré jusqu’ici sera sauvegardé.",
   "Recording paused for a moment because of a call or another app. It will resume when that ends.": "L’enregistrement est momentanément interrompu par un appel ou une autre app. Il reprendra dès la fin de l’interruption.",
   "Recording has resumed.": "L’enregistrement a repris.",
   "Microphone recording stopped. Tap Stop, then start again. Everything recorded so far will be saved.": "L’enregistrement par le micro s’est arrêté. Touchez Arrêter, puis recommencez. Tout ce qui a été enregistré jusqu’ici sera sauvegardé.",

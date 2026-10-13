@@ -368,6 +368,7 @@
   "Open Folder": "フォルダを開く",
   "APPEARANCE": "外観",
   "Couldn't get the sound back after the output device changed. Click Stop, then start again.": "出力デバイスが変わった後、音声を再び取り込めませんでした。“停止”をクリックしてから、もう一度開始してください。",
+  "The lecture's sound isn't coming in. If the lecture is playing and this message stays, click Stop, then start again. Everything recorded so far will be saved.": "講義の音声が入ってきていません。講義が再生中なのにこのメッセージが消えない場合は、“停止”をクリックしてから、もう一度開始してください。これまでの録音は保存されます。",
   "Recording paused for a moment because of a call or another app. It will resume when that ends.": "通話や別のアプリのため、録音が一時的に止まりました。終わりしだい、録音を再開します。",
   "Recording has resumed.": "録音を再開しました。",
   "Microphone recording stopped. Tap Stop, then start again. Everything recorded so far will be saved.": "マイクの録音が停止しました。“停止”をタップしてから、もう一度開始してください。これまでの録音は保存されます。",

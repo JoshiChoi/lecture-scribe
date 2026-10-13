@@ -372,6 +372,7 @@
   "Open Folder": "Ordner öffnen",
   "APPEARANCE": "ERSCHEINUNGSBILD",
   "Couldn't get the sound back after the output device changed. Click Stop, then start again.": "Nach dem Wechsel des Ausgabegeräts konnte der Ton nicht wiederhergestellt werden. Klicken Sie auf „Stopp“ und starten Sie dann erneut.",
+  "The lecture's sound isn't coming in. If the lecture is playing and this message stays, click Stop, then start again. Everything recorded so far will be saved.": "Der Ton der Vorlesung kommt nicht an. Wenn die Vorlesung läuft und diese Meldung bleibt, klicken Sie auf „Stopp“ und starten Sie dann erneut. Alles bisher Aufgenommene wird gesichert.",
   "Recording paused for a moment because of a call or another app. It will resume when that ends.": "Die Aufnahme wurde wegen eines Anrufs oder einer anderen App kurz unterbrochen. Sie wird danach automatisch fortgesetzt.",
   "Recording has resumed.": "Die Aufnahme läuft wieder.",
   "Microphone recording stopped. Tap Stop, then start again. Everything recorded so far will be saved.": "Die Mikrofonaufnahme wurde unterbrochen. Tippen Sie auf „Stopp“ und starten Sie dann erneut. Alles bisher Aufgenommene wird gesichert.",
