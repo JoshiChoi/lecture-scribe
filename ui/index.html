@@ -1798,7 +1798,9 @@
       if (!body.classList.contains("live-on") || !this.img) return;
       this.paint();
       const v = this.mode === "screen" ? $("stage") : $("campv");
-      if (!more || !v.getClientRects().length) return;                // (the stage is fixed: no offsetParent)
+      // a window out of sight gets no flash: WebKit holds its animations until the window shows again, and they would
+      // then play slides long gone, piled over the current one
+      if (!more || document.hidden || !v.getClientRects().length) return;   // (the stage is fixed: no offsetParent)
       const frame = v.querySelector(".lv-frame"), pages = v.querySelector(".lv-pages");
       v.querySelector(".lv-flash").animate([{ opacity: 0 }, { opacity: 0.8, offset: 0.15 }, { opacity: 0 }], { duration: 560, easing: "ease-out" });
       if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -1816,7 +1818,15 @@
                    { transform: `translate(${dx}px, ${dy}px) scale(${k})`, opacity: 0.15 }], { duration: 950, easing: "cubic-bezier(0.3, 0.7, 0.2, 1)" })
         .finished.then(() => { fly.remove(); pages.classList.remove("bump"); void pages.offsetWidth; pages.classList.add("bump"); }, () => fly.remove());
     },
+    /// the window went out of sight or came back: a flash or flying slide still under way ends now, so it can't play
+    /// late over a newer slide
+    settle() {
+      for (const v of this.views()) for (const an of v.querySelector(".lv-flash").getAnimations()) an.cancel();
+      for (const fly of document.querySelectorAll(".lv-fly")) fly.remove();
+      if (body.classList.contains("live-on")) send("log", { msg: `ui live view ${document.hidden ? "hidden" : "shown"}` });
+    },
   };
+  document.addEventListener("visibilitychange", () => live.settle());
   for (const b of $("viewSw").children) b.onclick = () => live.setMode(b.dataset.v);
   $("campvFrame").onclick = () => live.setMode("screen");
   for (const sw of document.querySelectorAll(".ccsw")) sw.onclick = (e) => e.stopPropagation();   // the card's switch isn't a click on the card
