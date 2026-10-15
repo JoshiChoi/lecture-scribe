@@ -472,6 +472,11 @@
   "Stop Transcribing": "停止轉錄",
   "Downloads": "下載項目",
   "Documents": "文件",
-  "Desktop": "桌面"
+  "Desktop": "桌面",
+  "Open Software Update": "打開「軟體更新」",
+  "Speech Recognition is turned off for this app, so it can't transcribe. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition.": "此 App 的「語音辨識」權限已關閉，因此無法轉錄。請在「系統設定」›「隱私權與安全性」›「語音辨識」中開啟 Arc Lecture Transcriber（Arc 강의 받아쓰기）。",
+  "This Mac doesn't have Apple's speech recognition for this lecture language. Turn on Dictation in System Settings › Keyboard and add this language, then try again — or update to the latest macOS.": "這部 Mac 上沒有適用於此授課語言的 Apple 語音辨識。請在「系統設定」›「鍵盤」中開啟「聽寫」並加入此語言，然後再試一次——或更新至最新的 macOS。",
+  "Apple's older speech recognition on this macOS · may not work well": "此 macOS 上較舊的 Apple 語音辨識 · 效果可能不佳",
+  "On this Mac's macOS ({0}), the app transcribes with Apple's older speech recognition, which may not work well. For better transcripts, update to the latest macOS (free).": "在這部 Mac 的 macOS（{0}）上，App 會使用較舊的 Apple 語音辨識轉錄，效果可能不佳。若要轉錄得更準確，請更新至最新的 macOS（免費）。"
  }
 };

@@ -484,6 +484,11 @@
   "Stop Transcribing": "Остановить расшифровку",
   "Downloads": "Загрузки",
   "Documents": "Документы",
-  "Desktop": "Рабочий стол"
+  "Desktop": "Рабочий стол",
+  "Open Software Update": "Открыть «Обновление ПО»",
+  "Speech Recognition is turned off for this app, so it can't transcribe. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition.": "Распознавание речи для этого приложения выключено, поэтому оно не может делать расшифровку. Включите Arc Lecture Transcriber (Arc 강의 받아쓰기) в разделе «Системные настройки» › «Конфиденциальность и безопасность» › «Распознавание речи».",
+  "This Mac doesn't have Apple's speech recognition for this lecture language. Turn on Dictation in System Settings › Keyboard and add this language, then try again — or update to the latest macOS.": "На этом Mac нет распознавания речи Apple для языка этой лекции. Включите диктовку в разделе «Системные настройки» › «Клавиатура» и добавьте этот язык, затем повторите попытку — или обновите macOS до последней версии.",
+  "Apple's older speech recognition on this macOS · may not work well": "Старое распознавание речи Apple в этой версии macOS · может работать плохо",
+  "On this Mac's macOS ({0}), the app transcribes with Apple's older speech recognition, which may not work well. For better transcripts, update to the latest macOS (free).": "В macOS этого Mac ({0}) приложение делает расшифровку старым распознаванием речи Apple, которое может работать плохо. Чтобы расшифровка была точнее, обновите macOS до последней версии (бесплатно)."
  }
 };

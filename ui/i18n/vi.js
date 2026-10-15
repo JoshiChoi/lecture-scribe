@@ -472,6 +472,11 @@
   "Stop Transcribing": "Dừng chép lại",
   "Downloads": "Tải về",
   "Documents": "Tài liệu",
-  "Desktop": "Màn hình nền"
+  "Desktop": "Màn hình nền",
+  "Open Software Update": "Mở Cập nhật phần mềm",
+  "Speech Recognition is turned off for this app, so it can't transcribe. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition.": "Nhận dạng lời nói đang tắt cho ứng dụng này nên không thể chép lại. Hãy bật Arc Lecture Transcriber (Arc 강의 받아쓰기) trong Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Nhận dạng lời nói.",
+  "This Mac doesn't have Apple's speech recognition for this lecture language. Turn on Dictation in System Settings › Keyboard and add this language, then try again — or update to the latest macOS.": "Máy Mac này không có tính năng nhận dạng lời nói của Apple cho ngôn ngữ bài giảng này. Hãy bật Đọc chính tả trong Cài đặt hệ thống › Bàn phím, thêm ngôn ngữ này rồi thử lại — hoặc cập nhật lên macOS mới nhất.",
+  "Apple's older speech recognition on this macOS · may not work well": "Nhận dạng lời nói cũ của Apple trên macOS này · có thể không hoạt động tốt",
+  "On this Mac's macOS ({0}), the app transcribes with Apple's older speech recognition, which may not work well. For better transcripts, update to the latest macOS (free).": "Trên macOS của máy Mac này ({0}), ứng dụng chép lại bằng tính năng nhận dạng lời nói cũ của Apple nên có thể không hoạt động tốt. Để chép lại chính xác hơn, hãy cập nhật lên macOS mới nhất (miễn phí)."
  }
 };

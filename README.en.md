@@ -23,7 +23,7 @@ Apple on-device speech recognition · free · open source · everything stays on
 
 ## Features
 
-- **Speech recognition:** transcribes on your Mac with **Apple's on-device speech recognition (SpeechAnalyzer)**, built into macOS. Only when the lecture language's speech model isn't on your Mac yet does it download once, from Apple; the lecture never leaves your Mac.
+- **Speech recognition:** transcribes on your Mac with **Apple's on-device speech recognition (SpeechAnalyzer)**, built into macOS (on macOS 14.2–15, Apple's older on-device speech recognition — see Requirements). Only when the lecture language's speech model isn't on your Mac yet does it download once, from Apple; the lecture never leaves your Mac.
 - **Other speech engines (optional).** Download one once in Settings › Speech Recognition to use it instead of Apple's. All run entirely on your Mac, and you can delete them when you no longer need them. (They use more power than Apple's.)
   - **Qwen3-ASR** (Alibaba's open model, about 1.5 GB) — the most accurate for lectures that mix Korean and English and for strongly accented English. (It may spell foreign names in English letters inside Korean sentences, write a very strongly Korean-accented short English line in Hangul, or turn unclear short Korean speech into made-up English. Japanese spoken in an English lecture comes out as Korean.)
   - **Whisper large-v3 turbo** (OpenAI's open model, about 575 MB)
@@ -59,8 +59,8 @@ Apple on-device speech recognition · free · open source · everything stays on
 
 ## Requirements
 
-- **macOS 26 (Tahoe) or later** on an Apple Silicon (M1 or later) Mac
-- On macOS 14.2–15, the install command below installs [v1](https://github.com/WeldingArc/arc-lecture-transcriber/releases/tag/v1.0.0), the older Whisper version (with the old icon). To get the current version, first update macOS in System Settings › General › Software Update — free for every Apple Silicon Mac — then run the command.
+- An Apple Silicon (M1 or later) Mac with **macOS 14.2 or later** — **macOS 26 (Tahoe) or later recommended**
+- On macOS 14.2–15 the app transcribes with Apple's older speech recognition, which may not work as well (the app and the install command say so), and the lecture languages are the ones that Mac's Dictation has. For the best transcripts, update to the latest macOS in System Settings › General › Software Update — free for every Apple Silicon Mac.
 
 ## Install
 
@@ -145,7 +145,7 @@ Attach `app.log` from **Help → Open Log Folder (for Reporting Problems)** to a
 ## How it works
 
 ```
-Mac system audio ─▶ Core Audio tap (macOS 14.2+) ─▶ Apple SpeechAnalyzer
+Mac system audio ─▶ Core Audio tap (macOS 14.2+) ─▶ Apple SpeechAnalyzer (macOS 26+; on 14.2–15 Apple's older SFSpeechRecognizer)
                                                    ├─ Korean recognition (live preview + final sentences)
                                                    └─ English recognition → English quotes kept, placed by word timing and confidence
                                                ─▶ the window + Downloads/Lecture Transcriber or 강의기록 (.txt, .m4a)
@@ -155,7 +155,7 @@ When you choose another engine, a small runtime inside the app — **whisper.cpp
 
 It is a single native Swift app (AppKit + WKWebView) that runs in Apple's sandbox. The app is about 17 MB (speech models download separately). To build it yourself, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
-**v1** ran OpenAI Whisper large-v3-turbo with whisper.cpp. It remains available for macOS 14.2–15 as the [v1.0.0 release](https://github.com/WeldingArc/arc-lecture-transcriber/releases/tag/v1.0.0).
+**v1** (the [v1.0.0 release](https://github.com/WeldingArc/arc-lecture-transcriber/releases/tag/v1.0.0)) ran OpenAI Whisper large-v3-turbo with whisper.cpp. Since 2.7 the same current app runs on macOS 14.2 and later.
 
 ## License
 

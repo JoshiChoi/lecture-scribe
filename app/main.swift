@@ -291,6 +291,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
 
     func openLink(_ url: URL) { NSWorkspace.shared.open(url) }
 
+    /// macOS 14.2–15: Software Update (the notice recommending the latest macOS); Speech Recognition (its permission).
+    func openPane(_ name: String) {
+        let pages = name == "update" ? ["x-apple.systempreferences:com.apple.Software-Update-Settings.extension",
+                                        "x-apple.systempreferences:com.apple.preferences.softwareupdate"]
+                  : name == "speech" ? ["x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition"] : []
+        for s in pages { if let u = URL(string: s), NSWorkspace.shared.open(u) { break } }
+    }
+
     /// What the page knows before it runs a line: the platform, test hooks — and the app's language, so it is drawn in it.
     func pageScript() -> WKUserScript {
         let testOpen = env["LECTURE_TEST_OPEN"].map { " window.__TEST_OPEN__ = \(jsString($0));" } ?? ""

@@ -330,18 +330,20 @@ func compress(wav: URL, seconds: Double) async -> URL {
     let part = compressPart(m4a)
     try? fm.removeItem(at: part)
     do {
-        let input = try AVAudioFile(forReading: wav)
-        let output = try AVAudioFile(forWriting: part, settings: [
-            AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 16000, AVNumberOfChannelsKey: 1,
-            AVEncoderBitRateKey: 32000,
-        ], commonFormat: .pcmFormatFloat32, interleaved: false)
-        let chunk = AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: 16000 * 10)!
-        while input.framePosition < input.length {
-            try input.read(into: chunk)
-            if chunk.frameLength == 0 { break }
-            try output.write(from: chunk)
+        try autoreleasepool {                         // the output closes at its end (AVAudioFile.close() is macOS 15+)
+            let input = try AVAudioFile(forReading: wav)
+            let output = try AVAudioFile(forWriting: part, settings: [
+                AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 16000, AVNumberOfChannelsKey: 1,
+                AVEncoderBitRateKey: 32000,
+            ], commonFormat: .pcmFormatFloat32, interleaved: false)
+            let chunk = AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: 16000 * 10)!
+            while input.framePosition < input.length {
+                try input.read(into: chunk)
+                if chunk.frameLength == 0 { break }
+                try output.write(from: chunk)
+            }
+            if #available(macOS 15, iOS 18, *) { output.close() }
         }
-        output.close()
         if let produced = audioSeconds(part), abs(produced - seconds) < 1.0 {
             if fm.fileExists(atPath: m4a.path) { try fm.removeItem(at: m4a) }      // a broken leftover, never a good one
             try fm.moveItem(at: part, to: m4a)
@@ -467,7 +469,9 @@ final class Engine {
     /// 설정 › 음성 인식: every engine this app offers and its state. The page draws whatever is listed, so another
     /// platform (a Windows build, say) can offer its own engines through the same events and commands.
     var enginesEvent: [String: Any] {
-        var list: [[String: Any]] = [["id": "apple", "name": L("Apple 음성 인식", "Apple Speech Recognition"), "desc": L("기본 · 가볍고 빠르며 macOS에 들어 있습니다", "Default · Light and fast, built into macOS"),
+        var list: [[String: Any]] = [["id": "apple", "name": L("Apple 음성 인식", "Apple Speech Recognition"),
+                                      "desc": LectureLanguage.modern ? L("기본 · 가볍고 빠르며 macOS에 들어 있습니다", "Default · Light and fast, built into macOS")
+                                                                     : L("이 macOS의 예전 음성 인식 · 잘 동작하지 않을 수 있습니다", "Apple's older speech recognition on this macOS · may not work well"),
                                       "state": "ready", "bytes": 0]]
         #if WHISPER
         for m in models {                                 // a ready engine's size: what 삭제 frees (the shared detector stays
@@ -542,7 +546,7 @@ final class Engine {
                 let r = WhisperRecognizer(live: live, major: settings.language, spec: m.spec)
                 r.onFallback = { [weak m] in m?.recheck() }
                 let lang = settings.language                     // the recording's — not one chosen during it
-                r.makeApple = { [weak self] in self?.appleRecognizer(lang) ?? Recognizer(main: lang == "en" ? "en" : "ko") }
+                r.makeApple = { [weak self] in self?.appleRecognizer(lang, live: live) ?? ClassicRecognizer(locale: Locale(identifier: lang == "en" ? "en-US" : "ko-KR"), live: live) }
                 return (r, m.spec.id)
             } else {
                 emit(["ev": "notice", "code": "engine_missing", "msg": m.downloading || m.state == .verifying
@@ -551,13 +555,17 @@ final class Engine {
             }
         }
         #endif
-        return (appleRecognizer(), "apple")
+        return (appleRecognizer(live: live), "apple")
     }
 
     /// Apple's recognizer for the lecture language: Korean and English write each other's quotes (an English lecture with
     /// the Korean model only when `englishKorean`); any other language its own model alone.
-    func appleRecognizer(_ language: String? = nil) -> SpeechRecognizer {
+    func appleRecognizer(_ language: String? = nil, live: Bool = true) -> SpeechRecognizer {
         let lang = language ?? settings.language
+        guard #available(macOS 26, iOS 26, *), LectureLanguage.modern else {     // macOS 14.2–15: the older recognizer
+            let l = lectureLanguages.first { $0.id == lang } ?? lectureLanguages.first
+            return ClassicRecognizer(locale: l?.locale ?? Locale(identifier: lang == "en" ? "en-US" : "ko-KR"), live: live)
+        }
         if lang == "ko" || (lang == "en" && englishKorean) { return Recognizer(main: lang) }
         guard let l = lectureLanguages.first(where: { $0.id == lang }) else { return Recognizer(main: lang == "en" ? "en" : "ko") }
         log("recognizer: \(l.locale.identifier(.bcp47))\(l.dictation ? " (dictation model)" : "")")
@@ -621,6 +629,7 @@ final class Engine {
     /// their way; the page hears only of the current language's (`emitLanguageState`).
     private func fetch(_ lang: String) {
         guard !prepared.contains(lang), fetching[lang] == nil else { return }
+        guard #available(macOS 26, iOS 26, *), LectureLanguage.modern else { prepared.insert(lang); return }   // macOS keeps its models
         fetchErrors[lang] = nil
         defer { if (downloadMB[lang] ?? 0) > 0 { emit(languagesEvent) } }     // the list marks it as on its way
         fetching[lang] = Task {
@@ -760,6 +769,7 @@ final class Engine {
             }
             emitLanguageState()
             log("engine ready")
+            if !LectureLanguage.modern { emit(Engine.olderMacOSNotice) }
             #if WHISPER
             for m in models { m.warmUpIfUpdated(selected: settings.engine == m.spec.id) }
             #endif
@@ -779,6 +789,16 @@ final class Engine {
                 }
             }
         }
+    }
+
+    /// macOS 14.2–15 (and LECTURE_TEST_CLASSIC=1): Apple's older speech recognition writes the transcript there — it may
+    /// not work well, so the page recommends the latest macOS, with a button to Software Update.
+    static var olderMacOSNotice: [String: Any] {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        let version = "\(v.majorVersion).\(v.minorVersion)" + (v.patchVersion > 0 ? ".\(v.patchVersion)" : "")
+        return ["ev": "notice", "code": "older_macos",
+                "msg": L("이 Mac의 macOS(\(version))에서는 예전 Apple 음성 인식으로 받아 적어서 잘 동작하지 않을 수 있습니다. 더 정확하게 받아 적으려면 최신 macOS로 업데이트하십시오(무료).",
+                         "On this Mac's macOS (\(version)), the app transcribes with Apple's older speech recognition, which may not work well. For better transcripts, update to the latest macOS (free).")]
     }
 
     /// iPhone: the document picker's copy of a file we won't use.
@@ -836,7 +856,9 @@ final class Engine {
                 do { try await s.start() } catch {
                     guard session === s else { log("late start failure ignored: \(error)"); return }   // that session already ended
                     log("session start failed: \(error)")
-                    if mode == .file {
+                    if let e = error as? EngineError {
+                        emit(["ev": "notice", "code": e.code ?? "recognizer", "msg": e.message])
+                    } else if mode == .file {
                         let ce = error as? CaptureError
                         emit(["ev": "notice", "code": "file_error", "msg": ce?.status == -3
                               ? L("파일을 여는 데 너무 오래 걸립니다. iCloud나 네트워크에 있는 파일이면 먼저 이 기기에 내려받은 뒤 다시 시도하십시오.", "Opening the file is taking too long. If it's in iCloud or on a network, download it to this device first, then try again.")

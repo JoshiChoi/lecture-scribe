@@ -19,7 +19,7 @@ cmake -S "$SRC" -B "$SRC/build-app" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LI
   -DWHISPER_BUILD_EXAMPLES=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=OFF \
   -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16 \
   -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_BLAS=ON -DGGML_OPENMP=OFF \
-  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=26.0 >/dev/null
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=14.2 >/dev/null
 cmake --build "$SRC/build-app" --config Release -j 4
 rm -rf "$OUT"; mkdir -p "$OUT/lib" "$OUT/include"
 find "$SRC/build-app" -name '*.a' -exec cp {} "$OUT/lib/" \;

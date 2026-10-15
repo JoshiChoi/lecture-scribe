@@ -3,14 +3,14 @@
 name: LectureScribe
 options:
   deploymentTarget:
-    macOS: "26.0"
+    macOS: "14.2"                      # below 26: Apple's older speech recognition (app/ClassicRecognizer.swift)
     iOS: "26.0"
   createIntermediateGroups: true
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "2.6.1"
-    CURRENT_PROJECT_VERSION: "261"
+    MARKETING_VERSION: "2.7.0"
+    CURRENT_PROJECT_VERSION: "270"
     CODE_SIGN_STYLE: Automatic
     ENABLE_HARDENED_RUNTIME: YES
     DEAD_CODE_STRIPPING: YES
@@ -112,6 +112,7 @@ targets:
     sources:
       - path: app/Audio.swift
       - path: app/Recognizer.swift
+      - path: app/ClassicRecognizer.swift
       - path: app/Engine.swift
       - path: app/Library.swift
       - path: app/Player.swift

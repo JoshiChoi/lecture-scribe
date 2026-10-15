@@ -1,6 +1,7 @@
 #!/bin/bash
-# Builds 강의 받아쓰기 v2 — one native app (Apple's on-device speech recognition, macOS 26+; Whisper, Qwen3-ASR and
-# Parakeet as optional engines whose models are downloaded in the app).
+# Builds 강의 받아쓰기 v2 — one native app for macOS 14.2+ (Apple's on-device speech recognition: SpeechAnalyzer on
+# macOS 26+, the older SFSpeechRecognizer below; Whisper, Qwen3-ASR and Parakeet as optional engines whose models are
+# downloaded in the app).
 #
 #   scripts/build_v2.sh                       # ad-hoc signed, sandboxed → build/v2/Arc 강의 받아쓰기.app
 #                                             #   and dist/v2/LectureScribe-mac.zip
@@ -12,8 +13,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-VERSION="${VERSION:-2.6.1}"
-BUILD_NUMBER="${BUILD_NUMBER:-261}"
+VERSION="${VERSION:-2.7.0}"
+BUILD_NUMBER="${BUILD_NUMBER:-270}"
 SIGN_ID="${SIGN_ID:--}"
 ENTITLEMENTS="${ENTITLEMENTS:-$ROOT/app/LectureScribe.entitlements}"
 OUT="${OUT:-$ROOT/build/v2}"
@@ -34,8 +35,8 @@ WHISPER=(-D WHISPER -import-objc-header "$ROOT/app/WhisperBridge.h" -Xcc "-I$ROO
          -Xlinker -rpath -Xlinker @executable_path/../Frameworks)
 
 step "compile"
-if ! swiftc -O -swift-version 5 -target arm64-apple-macos26.0 -file-prefix-map "$ROOT/=./" "${WHISPER[@]}" \
-       -o "$OUT/LectureScribe" "$ROOT"/app/Audio.swift "$ROOT"/app/Recognizer.swift "$ROOT"/app/Engine.swift \
+if ! swiftc -O -swift-version 5 -target arm64-apple-macos14.2 -file-prefix-map "$ROOT/=./" "${WHISPER[@]}" \
+       -o "$OUT/LectureScribe" "$ROOT"/app/Audio.swift "$ROOT"/app/Recognizer.swift "$ROOT"/app/ClassicRecognizer.swift "$ROOT"/app/Engine.swift \
        "$ROOT"/app/Library.swift "$ROOT"/app/Player.swift "$ROOT"/app/Bridge.swift "$ROOT"/app/Slides.swift "$ROOT"/app/CameraFinder.swift \
        "$ROOT"/app/ScreenSlides.swift "$ROOT"/app/Whisper.swift "$ROOT"/app/main.swift 2> "$OUT/swiftc.log"; then
   cat "$OUT/swiftc.log"; exit 1
@@ -86,6 +87,10 @@ else
   codesign --force --sign "$SIGN_ID" --options runtime --timestamp --entitlements "$ENTITLEMENTS" "$APP"
 fi
 codesign --verify --strict "$APP"
+for f in "$APP/Contents/MacOS/LectureScribe" "$APP/Contents/Frameworks/libtranscribe.dylib"; do   # one app for 14.2+
+  m=$(vtool -show-build "$f" | awk '/minos/ {print $2; exit}')
+  [ "$m" = "14.2" ] || { echo "  $(basename "$f") needs macOS $m — everything must run on 14.2"; exit 1; }
+done
 echo "  minimum macOS: $(vtool -show-build "$APP/Contents/MacOS/LectureScribe" | awk '/minos/ {print $2; exit}')  ·  size: $(du -sh "$APP" | cut -f1)"
 
 step "zip"
