@@ -60,7 +60,7 @@ Apple 온디바이스 음성 인식 · 무료 · 오픈소스 · 모든 처리�
 ## 요구 사항
 
 - **macOS 26 (Tahoe) 이상**, Apple Silicon(M1 이상) Mac
-- macOS 14.2\~15라면 [v1(Whisper 버전)](https://github.com/WeldingArc/arc-lecture-transcriber/releases/tag/v1.0.0)을 사용하십시오. 아래 설치 명령은 macOS 버전에 맞는 버전을 자동으로 선택합니다.
+- macOS 14.2\~15에서는 아래 설치 명령이 예전 Whisper 버전인 [v1](https://github.com/WeldingArc/arc-lecture-transcriber/releases/tag/v1.0.0)(예전 아이콘)을 설치합니다. 최신 버전을 쓰려면 먼저 시스템 설정 › 일반 › 소프트웨어 업데이트에서 macOS를 업데이트한 뒤(Apple Silicon Mac은 모두 무료) 설치 명령을 실행하십시오.
 
 ## 설치
 
