@@ -1376,7 +1376,7 @@ enum SlidesPDF {
     /// One session's slides, ready to be laid out: each slide's picture, when it first showed, what was said while it was
     /// up, and its name ("슬라이드 3 · 수요와 공급" — the title read off the slide, when there is one).
     struct Deck {
-        struct Slide { let image: CGImage; let shown: Double?; let lines: [(Double, String)]; let name: String }
+        struct Slide { let image: CGImage; let shown: Double?; let lines: [(Double, String)]; let name: String; var text: [SlideText.Line] = [] }
         let title: String, header: String, said: Int, end: Double
         let slides: [Slide]
     }
@@ -1421,12 +1421,17 @@ enum SlidesPDF {
         let pictures = images.map { entry in crops[entry.0].flatMap { entry.1.cropping(to: pixels($0, entry.1)) } ?? entry.1 }
         let titles = SlideTitles.read(images.map { known[$0.0] ?? SlideTitles.lines($0.1) },   // read while recording, or now
                                       within: images.map { crops[$0.0] })
+        let started = Date()
+        let languages = SlideText.languages(for: Settings.load().language)
+        let texts = pictures.map { cancelled() ? [] : SlideText.read($0, languages: languages) }   // searchable in the PDF
+        log("slides pdf: read the text of \(pictures.count) slides in \(String(format: "%.1f", Date().timeIntervalSince(started))) s")
         let deck = Deck(title: coverTitle(name: name, header: header, file: transcript), header: header,
                         said: rawLines.filter { !$0.2.isEmpty }.count, end: end,     // as the transcript counts them
                         slides: images.enumerated().map { n, entry in
                             Deck.Slide(image: pictures[n], shown: firstShown[entry.0],
                                        lines: lines.filter { l in (spans[entry.0] ?? []).contains { l.0 >= $0.0 && l.0 < $0.1 } },
-                                       name: [L("슬라이드 \(n + 1)", "Slide \(n + 1)"), titles[n]].compactMap { $0 }.joined(separator: " · "))
+                                       name: [L("슬라이드 \(n + 1)", "Slide \(n + 1)"), titles[n]].compactMap { $0 }.joined(separator: " · "),
+                                       text: texts[n])
                         })
 
         let pdfURL = transcript.deletingPathExtension().appendingPathExtension("pdf")
@@ -1545,13 +1550,41 @@ enum SlidesPDF {
         return CGRect(x: 0, y: 0, width: 960, height: min(960, max(400, h)))
     }
 
-    /// The picture filling the page (centred on black if the page had to be a little wider or taller than it).
-    private static func fullBleed(_ ctx: CGContext, _ image: CGImage, _ box: CGRect) {
+    /// The picture filling the page (centred on black if the page had to be a little wider or taller than it); where it went.
+    @discardableResult
+    private static func fullBleed(_ ctx: CGContext, _ image: CGImage, _ box: CGRect) -> CGRect {
         ctx.setFillColor(CGColor(gray: 0, alpha: 1)); ctx.fill(box)
         let k = min(box.width / CGFloat(image.width), box.height / CGFloat(image.height))
         let w = CGFloat(image.width) * k, h = CGFloat(image.height) * k
+        let r = CGRect(x: (box.width - w) / 2, y: (box.height - h) / 2, width: w, height: h)
         ctx.interpolationQuality = .high
-        ctx.draw(image, in: CGRect(x: (box.width - w) / 2, y: (box.height - h) / 2, width: w, height: h))
+        ctx.draw(image, in: r)
+        return r
+    }
+
+    /// A slide's words over its picture in `r`, invisible (PDF text that isn't painted, as in a scanned document's text
+    /// layer): the PDF can be searched and the slide's words selected and copied; the picture looks the same. Each line is
+    /// stretched to the width Vision measured, its baseline about a fifth of the way up its box.
+    private static func invisible(_ ctx: CGContext, _ lines: [SlideText.Line], in r: CGRect) {
+        guard !lines.isEmpty else { return }
+        ctx.saveGState()
+        ctx.setTextDrawingMode(.invisible)
+        for l in lines {
+            let box = CGRect(x: r.minX + l.box.minX * r.width, y: r.minY + l.box.minY * r.height,
+                             width: l.box.width * r.width, height: l.box.height * r.height)
+            guard box.width >= 2, box.height >= 2 else { continue }
+            let line = CTLineCreateWithAttributedString(text(l.text, font(box.height * 0.8, "Regular"), ink))
+            let w = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+            guard w > 0 else { continue }
+            ctx.saveGState()
+            ctx.textMatrix = .identity
+            ctx.translateBy(x: box.minX, y: box.minY + box.height * 0.2)
+            ctx.scaleBy(x: box.width / w, y: 1)
+            ctx.textPosition = .zero
+            CTLineDraw(line, ctx)
+            ctx.restoreGState()
+        }
+        ctx.restoreGState()
     }
 
     /// What was said while a slide was up: time, sentence; or a note that nothing was.
@@ -1593,7 +1626,7 @@ enum SlidesPDF {
             let box = wideBox(s.image)
             begin(ctx, box); pageNo += 1                                    // the slide, the whole page
             marks.append((s.name, pageNo - 1))
-            fullBleed(ctx, s.image, box)
+            invisible(ctx, s.text, in: fullBleed(ctx, s.image, box))
             ctx.endPDFPage()
             guard withText else { continue }
             let said = saidText(s.lines, size: 11.5), m: CGFloat = 52, gap: CGFloat = 34
@@ -1702,6 +1735,7 @@ enum SlidesPDF {
                     let r = CGRect(x: margin + (w - iw) / 2, y: top - 16 - h, width: iw, height: h)
                     ctx.saveGState(); ctx.addPath(CGPath(roundedRect: r, cornerWidth: 5, cornerHeight: 5, transform: nil)); ctx.clip()
                     ctx.draw(image, in: r); ctx.restoreGState()
+                    invisible(ctx, s.text, in: r)
                     ctx.setStrokeColor(hairline); ctx.setLineWidth(0.6)
                     ctx.addPath(CGPath(roundedRect: r, cornerWidth: 5, cornerHeight: 5, transform: nil)); ctx.strokePath()
                     textTop = r.minY - 26
@@ -1775,6 +1809,36 @@ enum SlidesPDF {
 /// biggest line of text in the upper part of the slide — not a web address, not a clock, and not something that sits
 /// near the top of most slides alike (the browser's address bar, the course site's banner) — with its second line
 /// when the title runs onto one. No title (a photo, a blank slide): nil, and the slide keeps just its number.
+/// What a slide says, read with Vision on the device — laid over the slide in the PDF as invisible text (SlidesPDF.invisible).
+/// Korean and English (as the titles are read), or the lecture's language with English when Vision reads it; about 0.15
+/// s a slide on an M2 (the first read in a process loads the model).
+enum SlideText {
+    struct Line { let text: String; let box: CGRect }       // box: fractions of the picture, origin bottom left (Vision's)
+
+    /// Vision's languages for a lecture language: its own with English, if Vision reads it; otherwise Korean and English.
+    static func languages(for lecture: String) -> [String] {
+        let vision = ["ja": "ja-JP", "zh-Hans": "zh-Hans", "zh-Hant": "zh-Hant", "yue-Hant": "yue-Hant", "yue-Hans": "yue-Hans",
+                      "es": "es-ES", "fr": "fr-FR", "de": "de-DE", "it": "it-IT", "pt-BR": "pt-BR", "pt-PT": "pt-PT", "ru": "ru-RU",
+                      "uk": "uk-UA", "vi": "vi-VT", "th": "th-TH", "ar": "ar-SA"]
+        guard let v = vision[lecture], (try? VNRecognizeTextRequest().supportedRecognitionLanguages())?.contains(v) == true
+        else { return ["ko-KR", "en-US"] }
+        return [v, "en-US"]
+    }
+
+    static func read(_ image: CGImage, languages: [String] = ["ko-KR", "en-US"]) -> [Line] {
+        let req = VNRecognizeTextRequest()
+        req.recognitionLevel = .accurate
+        req.recognitionLanguages = languages
+        req.usesLanguageCorrection = true
+        do { try VNImageRequestHandler(cgImage: image).perform([req]) } catch { return [] }
+        return (req.results ?? []).compactMap { o in              // in Vision's order: top down, left to right
+            guard let c = o.topCandidates(1).first, c.confidence >= 0.3 else { return nil }
+            let s = c.string.trimmingCharacters(in: .whitespaces)
+            return s.isEmpty ? nil : Line(text: s, box: o.boundingBox)
+        }
+    }
+}
+
 enum SlideTitles {
     struct Found { let text: String; let top: Double; let height: Double; let minX: Double; let maxX: Double }
 

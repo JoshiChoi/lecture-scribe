@@ -92,7 +92,8 @@ download from a local server: `python3 -m http.server 8977 --directory models`; 
 `LECTURE_DEBUG=1` (the runtimes' logs, per-piece timings and Qwen3's re-reads in app.log).
 
 Hooks (environment variables): `LECTURE_OUT_DIR`, `LECTURE_AUTOSTART=1`, `LECTURE_AUTOSTOP=<sec>`, `LECTURE_TEST_CLASSIC=1` (the
-macOS 14.2–15 path on any macOS: Apple's older recognizer, its language list and the update notice), the tap self-heal's
+macOS 14.2–15 path on any macOS: Apple's older recognizer, its language list and the update notice) with
+`LECTURE_TEST_CLASSIC_FAIL=start|tasks` (it isn't available / every task fails), the tap self-heal's
 `LECTURE_TEST_TAP_TONE=1` (a tone in place of what the tap hears), `LECTURE_TEST_TAP_SILENCE` / `LECTURE_TEST_TAP_CHOP=<from>-<to>,…`
 (seconds of tap audio: all silence, or 110 ms silent pieces), `LECTURE_TEST_TAP_HEALS=<n>` (the failure ends after n new taps),
 `LECTURE_TEST_TAP_DEAD=<n>` (the next n new taps hand nothing over), `LECTURE_TEST_PLAYING=1` ("another app plays sound") —
@@ -255,24 +256,40 @@ transcript; the boot shows the `older_macos` notice every launch (it may not wor
 with a Software Update button), 설정 › 음성 인식 says the same, and `scripts/install.sh` says it before installing.
 
 - **On the device only**: every request sets `requiresOnDeviceRecognition`; the lecture languages are the catalog's
-  locales whose recognizer `supportsOnDeviceRecognition` (macOS keeps those models with Dictation's languages — on
-  macOS 27: ko, en, ru); nothing to download in the app (`fetch` marks them prepared). It needs the Speech Recognition
-  permission (asked at the first Start; denied → notice `speech_denied` with a button to that privacy pane); a language
-  whose model is missing → `speech_unavailable` (turn on Dictation, or update macOS).
+  locales whose recognizer `supportsOnDeviceRecognition` (macOS keeps those models with Siri's and Dictation's
+  languages — on macOS 27: ko, en, ru), plus Korean and English always (the lecture language is never switched behind
+  the user's back); nothing to download in the app (`fetch` marks them prepared). It needs the Speech Recognition
+  permission (asked at the first Start).
+- **Recording never depends on it** (2.7.1; a friend's macOS 14 Mac with Dictation on but Siri off couldn't start —
+  macOS 14/15 seem to want Siri on): no permission → notice `speech_denied` (button: that privacy pane); no on-device
+  model, or not available within 1.5 s → `speech_unavailable` (buttons: 설정 › 음성 인식 for the Whisper engine, and
+  Siri's settings); 3 pieces in a row failing (other than "no speech") → the same notice; a failed piece's successor
+  waits 2 s, then 10 s. In each case the recognizer stops (sound dropped, nothing waited for) and the session goes on
+  recording — the recording can be transcribed later with 파일 불러오기. A file is refused instead (no permission,
+  no model: notice, no files — a copy of its sound would be no use). The page keeps `speech_*` notices when
+  recording starts. `isAvailable` isn't required (it may be false offline); a piece that ends within a second of
+  starting, live, also makes the next one wait a second. Known limits: after 3 failures in a row transcription stays
+  off for the rest of that session (the recording goes on); a saved lecture language other than ko/en whose model
+  isn't on the Mac is still switched (with a log line).
 - **Pieces**: made for short dictation, so the sound goes to it in pieces cut at a pause once a piece has 20 s (0.35 s
   under 15 % of the recent speech level; 0.15 s after 40 s; never longer than 55 s).
 - **One task at a time** (measured on macOS 27): a new recognition task ends the running one with "no speech"
   (kAFAssistantErrorDomain 1110) — in a file only the last piece survived. The next piece's sound is held until the
   running piece's final result is in, then goes to it at once; a file's reading waits while a minute is held (live sound
-  is never held up). A piece whose result doesn't come 20 s after its sound ended is given up (watchdog); 정지 waits
-  for the pieces in turn while they keep coming.
+  is never held up); tasks are made on the main queue, never on a capture thread. A piece that has said nothing for
+  20 s after its sound ended — no result at all, partial or complete — is given up, keeping what it showed (watchdog,
+  every second; 정지 does the same while it waits): 정지 waits for the pieces in turn while they keep answering and
+  never cancels the ones still queued.
 - **Utterances** (measured on macOS 27): within a piece it sends each utterance once complete and timed
   (`speechRecognitionMetadata` set) at a pause, then starts its text afresh; the final result repeats only the last
   utterance. Each complete utterance is written at once (split into sentences by punctuation and word times; a final
   that repeats the one just written is skipped); partial results have no word times (previews start where the last
   utterance ended). A partial that shares nothing with the one before and is far shorter keeps the old one's text
   (in case an older macOS restarts without the complete result).
-- Measured on macOS 27 (`LECTURE_TEST_CLASSIC=1`): tests/lecture.aiff CER 0.7 % (SpeechAnalyzer 0.7 %), 65 s in ~3 s.
+- Measured on macOS 27 (`LECTURE_TEST_CLASSIC=1`): tests/lecture.aiff CER 0.7 % (SpeechAnalyzer 0.7 %), 65 s in ~3 s; a
+  real 32-minute English lecture in 3.8 min, ~14 % of characters different from SpeechAnalyzer's transcript.
+- `scripts/install.sh` installs the latest release on 14.2+ (the warning below 26), never removes an installed app for one
+  this macOS can't open (it reads the download's `LSMinimumSystemVersion` first), refuses below 14.2 with how to update.
 
 ### Speech engines (설정 › 음성 인식)
 
@@ -532,6 +549,11 @@ with its text normalization on it stops after the first sentence.
   in the top 16 % (browser or player chrome), are dropped; the largest line wins (a near tie
   goes to the higher one) and a second line right under it is joined; with no title, just the number. Titles are read
   on a background queue as each slide is kept (the first read in a process loads the model, \~28 s; then 0.2–0.4 s).
+  Each slide page also carries the slide's text, read with Vision on the device (`SlideText`, accurate; ko-KR + en-US,
+  or the lecture language with en-US when Vision reads it — ja, zh, es, fr, de, it, pt, ru, uk, vi, th, ar)
+  and laid over the picture as invisible text (`SlidesPDF.invisible`: text rendering mode 3, each line stretched to the
+  width Vision measured), so the PDF can be searched and the slide's words selected and copied while the picture looks
+  the same (2.7.1; 8 slides in 1.1 s on an M2; landscape, split and classic — not the cover's thumbnail).
   Bookmarks are written with `CGPDFContextSetOutline` (a title on the outline's root makes Core Graphics write none), and
   `Keywords: slides=N` lets 기록 count the slides — never re-save these PDFs with PDFKit: it drops the outline and turns
   the Keywords into an array.

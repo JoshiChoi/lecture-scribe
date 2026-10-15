@@ -374,6 +374,10 @@ final class WhisperRecognizer: SpeechRecognizer {
             do {
                 try await apple.start()
                 core.handOver { apple.push($0) }
+                if (apple as? ClassicRecognizer)?.transcribing == false {       // macOS 14/15: its own notice says why
+                    log("\(core.spec.id): Apple's older recognizer couldn't take over either")
+                    return
+                }
                 log("\(core.spec.id): Apple's recognizer took over")
                 self?.onError?(EngineError(message: L("\(core.spec.name) 모델을 열지 못해서 이번 녹음은 Apple 음성 인식으로 받아 적습니다. 지금까지 들린 내용도 빠짐없이 받아 적습니다.", "Couldn't open the \(core.spec.name) model, so Apple Speech Recognition will transcribe this recording. Everything heard so far will be transcribed too, with nothing left out.")))
             } catch {

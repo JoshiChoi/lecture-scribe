@@ -13,8 +13,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-VERSION="${VERSION:-2.7.0}"
-BUILD_NUMBER="${BUILD_NUMBER:-270}"
+VERSION="${VERSION:-2.7.1}"
+BUILD_NUMBER="${BUILD_NUMBER:-271}"
 SIGN_ID="${SIGN_ID:--}"
 ENTITLEMENTS="${ENTITLEMENTS:-$ROOT/app/LectureScribe.entitlements}"
 OUT="${OUT:-$ROOT/build/v2}"
@@ -90,6 +90,10 @@ codesign --verify --strict "$APP"
 for f in "$APP/Contents/MacOS/LectureScribe" "$APP/Contents/Frameworks/libtranscribe.dylib"; do   # one app for 14.2+
   m=$(vtool -show-build "$f" | awk '/minos/ {print $2; exit}')
   [ "$m" = "14.2" ] || { echo "  $(basename "$f") needs macOS $m — everything must run on 14.2"; exit 1; }
+done
+for a in "$ROOT"/vendor/whisper/lib/*.a; do                     # the engine libraries linked in: every object file
+  m=$(otool -l "$a" | awk '/minos/ {print $2}' | sort -uV | tail -1)
+  [ "$m" = "14.2" ] || { echo "  $(basename "$a") needs macOS $m — rebuild it (scripts/build_whisper.sh)"; exit 1; }
 done
 echo "  minimum macOS: $(vtool -show-build "$APP/Contents/MacOS/LectureScribe" | awk '/minos/ {print $2; exit}')  ·  size: $(du -sh "$APP" | cut -f1)"
 

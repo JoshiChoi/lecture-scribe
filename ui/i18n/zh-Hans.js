@@ -474,9 +474,14 @@
   "Documents": "文稿",
   "Desktop": "桌面",
   "Open Software Update": "打开“软件更新”",
-  "Speech Recognition is turned off for this app, so it can't transcribe. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition.": "此 App 的“语音识别”权限已关闭，因此无法转写。请在“系统设置” › “隐私与安全性” › “语音识别”中打开 Arc Lecture Transcriber（Arc 강의 받아쓰기）。",
-  "This Mac doesn't have Apple's speech recognition for this lecture language. Turn on Dictation in System Settings › Keyboard and add this language, then try again — or update to the latest macOS.": "这台 Mac 上没有适用于此授课语言的 Apple 语音识别。请在“系统设置” › “键盘”中打开“听写”并添加此语言，然后重试——或更新到最新的 macOS。",
   "Apple's older speech recognition on this macOS · may not work well": "此 macOS 上较旧的 Apple 语音识别 · 效果可能不佳",
-  "On this Mac's macOS ({0}), the app transcribes with Apple's older speech recognition, which may not work well. For better transcripts, update to the latest macOS (free).": "在这台 Mac 的 macOS（{0}）上，App 使用较旧的 Apple 语音识别进行转写，效果可能不佳。若要转写得更准确，请更新到最新的 macOS（免费）。"
+  "On this Mac's macOS ({0}), the app transcribes with Apple's older speech recognition, which may not work well. For better transcripts, update to the latest macOS (free).": "在这台 Mac 的 macOS（{0}）上，App 使用较旧的 Apple 语音识别进行转写，效果可能不佳。若要转写得更准确，请更新到最新的 macOS（免费）。",
+  "Speech Recognition Settings": "语音识别设置",
+  "Open Siri Settings": "打开 Siri 设置",
+  "Speech Recognition is turned off for this app, so this lecture is recorded but not transcribed. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition; then you can transcribe this recording with Open File…": "此 App 的“语音识别”权限已关闭，因此本讲座只录音、不转写。请在“系统设置” › “隐私与安全性” › “语音识别”中打开 Arc Lecture Transcriber（Arc 강의 받아쓰기），之后可以用“打开文件…”转写这段录音。",
+  "Apple's speech recognition isn't available on this Mac, so this lecture is recorded but not transcribed. To transcribe, turn on Siri and Dictation (Keyboard) in System Settings so this language downloads, or download the Whisper engine in Settings › Speech Recognition; then you can transcribe this recording with Open File…": "这台 Mac 无法使用 Apple 语音识别，因此本讲座只录音、不转写。要转写，请在“系统设置”中打开 Siri 和“听写”（键盘），让这种语言下载完成，或在“设置 › 语音识别”中下载 Whisper 引擎；之后可以用“打开文件…”转写这段录音。",
+  "Apple's speech recognition keeps failing on this Mac, so the rest of this lecture is recorded but not transcribed. After turning on Siri and Dictation (Keyboard) in System Settings, or downloading the Whisper engine in Settings › Speech Recognition, you can transcribe this recording with Open File…": "这台 Mac 上的 Apple 语音识别反复失败，因此本讲座余下部分只录音、不转写。在“系统设置”中打开 Siri 和“听写”（键盘），或在“设置 › 语音识别”中下载 Whisper 引擎后，可以用“打开文件…”转写这段录音。",
+  "Speech Recognition is turned off for this app, so this file can't be transcribed. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition, then try again.": "此 App 的“语音识别”权限已关闭，因此无法转写这个文件。请在“系统设置” › “隐私与安全性” › “语音识别”中打开 Arc Lecture Transcriber（Arc 강의 받아쓰기），然后重试。",
+  "Apple's speech recognition isn't available on this Mac, so this file can't be transcribed. Turn on Siri and Dictation (Keyboard) in System Settings so this language downloads, or download the Whisper engine in Settings › Speech Recognition, then try again.": "这台 Mac 无法使用 Apple 语音识别，因此无法转写这个文件。请在“系统设置”中打开 Siri 和“听写”（键盘），让这种语言下载完成，或在“设置 › 语音识别”中下载 Whisper 引擎，然后重试。"
  }
 };

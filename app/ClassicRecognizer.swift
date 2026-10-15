@@ -1,13 +1,15 @@
 // Apple's older speech recognition (SFSpeechRecognizer, the engine behind macOS's Dictation) for macOS 14.2–15, where
-// SpeechAnalyzer doesn't exist. On the device only: a request never goes to Apple's servers, and a language whose model
-// isn't on the Mac isn't offered (LectureLanguage.available). It was made for short dictation, not hour-long lectures,
-// so the lecture goes to it in pieces — cut at a pause once a piece has 20 s, never longer than 55 s — and each piece's
-// results are split into sentences by their punctuation and word times. The utterance in progress is the grey preview.
+// SpeechAnalyzer doesn't exist. On the device only: a request never goes to Apple's servers. It was made for short
+// dictation, not hour-long lectures, so the lecture goes to it in pieces — cut at a pause once a piece has 20 s, never
+// longer than 55 s — and each piece's results are split into sentences by their punctuation and word times. The
+// utterance in progress is the grey preview.
 // Within a piece it works utterance by utterance: at each pause it sends the utterance once more, complete and timed
 // (`speechRecognitionMetadata` set), then starts its text afresh — the piece's final result holds only the last one —
 // so each utterance is written when it completes (measured on macOS 27).
 // It runs one recognition task at a time — a new task ends the one before it with "no speech" (measured on macOS 27) —
 // so the next piece's sound waits until the previous piece's final result is in, then goes to it all at once.
+// When it can't transcribe (no permission, no model for the language — macOS 14/15 also want Siri turned on — or it
+// keeps failing), the lecture is still recorded: the page says why and how, and the recording can be transcribed later.
 
 import AVFoundation
 import Foundation
@@ -19,22 +21,25 @@ final class ClassicRecognizer: SpeechRecognizer {
     var onError: ((Error) -> Void)?
 
     private let locale: Locale
+    private let live: Bool
     private let feed: Feed
+    /// False once it has stopped (no permission, no model, failing): Whisper's takeover says nothing more then.
     private var nextID = 1
     private var previews: [Int: (id: Int, start: Double, text: String)] = [:]    // piece → its preview line
     private var written: [Int: (start: Double, end: Double, text: String)] = [:] // piece → its last utterance written
     private var resume: [Int: Double] = [:]          // piece → where its next utterance starts (s into the piece)
+    private(set) var transcribing = true
     private var done: Set<Int> = []
     private var failures = 0                       // pieces in a row that ended in an error other than "no speech"
-    private var told = false
-    private var progress = Date()                  // when a piece last ended
     private var watchdog: Timer?
+    private static let test = env["LECTURE_TEST_CLASSIC_FAIL"] ?? ""     // tests: "start" (unavailable) or "tasks" (every task fails)
 
     /// `live`: a lecture playing now (sound is never held up); otherwise a file, whose reading waits while the
     /// recognizer is more than a minute behind.
     init(locale: Locale, live: Bool = true) {
         self.locale = locale
-        feed = Feed(live: live)
+        self.live = live
+        feed = Feed(live: live, failTasks: Self.test == "tasks")
     }
 
     /// Speech Recognition permission: asked once (the prompt shows the app's NSSpeechRecognitionUsageDescription).
@@ -44,51 +49,107 @@ final class ClassicRecognizer: SpeechRecognizer {
         return await withCheckedContinuation { c in SFSpeechRecognizer.requestAuthorization { c.resume(returning: $0) } }
     }
 
+    /// Live, it doesn't throw: without speech recognition the lecture is still recorded (`stop` says why, once). A file
+    /// is refused instead — recording a copy of it would be no use.
     func start() async throws {
-        guard await Self.authorization() == .authorized else {
-            throw EngineError(message: L("음성 인식 권한이 꺼져 있어 받아 적을 수 없습니다. 시스템 설정 › 개인정보 보호 및 보안 › 음성 인식에서 Arc 강의 받아쓰기를 켜십시오.",
-                                         "Speech Recognition is turned off for this app, so it can't transcribe. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition."),
-                              code: "speech_denied")
+        var allowed = true                                            // tests that simulate a failure don't ask for it
+        if Self.test.isEmpty { allowed = await Self.authorization() == .authorized }
+        guard allowed else {
+            if !live { throw EngineError(message: Self.deniedFile, code: "speech_denied") }
+            return stop(Self.denied, code: "speech_denied", why: "no permission")
         }
-        guard let r = SFSpeechRecognizer(locale: locale), r.supportsOnDeviceRecognition else {
-            throw EngineError(message: Self.unavailable, code: "speech_unavailable")
+        guard !feed.isClosed else { return }                            // 정지 while the permission prompt was up
+        guard Self.test != "start", let r = SFSpeechRecognizer(locale: locale), await Self.ready(r) else {
+            if !live { throw EngineError(message: Self.unavailableFile, code: "speech_unavailable") }
+            return stop(Self.unavailable, code: "speech_unavailable", why: "no on-device model for \(locale.identifier(.bcp47))")
         }
+        guard !feed.isClosed else { return }                            // 정지 while it was getting ready
         r.queue = .main
         r.defaultTaskHint = .dictation
-        feed.configure(r) { [weak self] piece, offset, result, error in      // on the main queue (r.queue)
-            MainActor.assumeIsolated { self?.result(piece, offset, result, error) }
+        feed.configure(r) { [weak self] piece, offset, result, error in     // the main queue (r.queue) — made sure of
+            let got = Got(result: result, error: error)
+            if Thread.isMainThread { MainActor.assumeIsolated { self?.result(piece, offset, got.result, got.error) } }
+            else { DispatchQueue.main.async { MainActor.assumeIsolated { self?.result(piece, offset, got.result, got.error) } } }
         }
-        // a piece whose sound has ended but whose result doesn't come in 20 s is given up (what it heard so far stays):
-        // the pieces after it would wait for ever
-        watchdog = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+        // a piece whose results stopped coming 20 s after its sound ended is given up (what it heard so far stays): the
+        // pieces after it would wait for ever; and a piece held back after a failure starts when its wait is over
+        watchdog = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, let stuck = self.feed.stalled(after: 20) else { return }
-                log("recognizer: piece \(stuck.index) gave no result 20 s after its end — moving on")
-                stuck.task?.cancel()
-                self.done.insert(stuck.index)
-                self.keepPreview(stuck.index)
-                self.progress = Date()
-                self.feed.ended(stuck.index)
+                guard let self else { return }
+                if let stuck = self.feed.stalled(after: 20) { self.skip(stuck) }
+                self.feed.kick()
             }
         }
         log("recognizer: \(locale.identifier(.bcp47)) — Apple's older speech recognition, on the device")
     }
 
+    /// A result handed to the main queue (the framework calls back there; this makes sure of it).
+    private struct Got: @unchecked Sendable { let result: SFSpeechRecognitionResult?; let error: Error? }
+
+    /// The recognizer works on the device for this language (`isAvailable` isn't required: it may be false without a
+    /// network; if it really can't work, the pieces fail and `stop` says so). Right after it's made it may not know
+    /// yet: it gets a second and a half.
+    private static func ready(_ r: SFSpeechRecognizer) async -> Bool {
+        for _ in 0..<15 {
+            if r.supportsOnDeviceRecognition { return true }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        log("recognizer: \(r.locale.identifier(.bcp47)) available \(r.isAvailable), on the device \(r.supportsOnDeviceRecognition)")
+        return false
+    }
+
+    /// No transcription from here on — the recording goes on. The page shows why and what to do, once.
+    private func stop(_ message: String, code: String, why: String) {
+        log("recognizer: not transcribing (\(why)) — the recording continues")
+        transcribing = false
+        feed.disable()
+        keepPreviews()
+        onError?(EngineError(message: message, code: code))
+    }
+
+    static var denied: String {
+        L("음성 인식 권한이 꺼져 있어서 이 강의는 녹음만 하고 받아 적지 않습니다. 시스템 설정 › 개인정보 보호 및 보안 › 음성 인식에서 Arc 강의 받아쓰기를 켠 뒤, 이 녹음은 ‘파일 불러오기’로 받아 적을 수 있습니다.",
+          "Speech Recognition is turned off for this app, so this lecture is recorded but not transcribed. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition; then you can transcribe this recording with Open File…")
+    }
+
+    static var deniedFile: String {
+        L("음성 인식 권한이 꺼져 있어서 이 파일을 받아 적을 수 없습니다. 시스템 설정 › 개인정보 보호 및 보안 › 음성 인식에서 Arc 강의 받아쓰기를 켠 뒤 다시 시도하십시오.",
+          "Speech Recognition is turned off for this app, so this file can't be transcribed. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition, then try again.")
+    }
+
+    static var unavailableFile: String {
+        L("이 Mac에서는 Apple 음성 인식을 쓸 수 없어서 이 파일을 받아 적을 수 없습니다. 시스템 설정에서 Siri와 받아쓰기(키보드)를 켜 이 언어를 내려받거나, 설정 › 음성 인식에서 Whisper 엔진을 내려받은 뒤 다시 시도하십시오.",
+          "Apple's speech recognition isn't available on this Mac, so this file can't be transcribed. Turn on Siri and Dictation (Keyboard) in System Settings so this language downloads, or download the Whisper engine in Settings › Speech Recognition, then try again.")
+    }
+
     static var unavailable: String {
-        L("이 Mac에는 이 강의 언어를 받아 적을 Apple 음성 인식이 없습니다. 시스템 설정 › 키보드에서 받아쓰기를 켜고 이 언어를 추가한 뒤 다시 시도하십시오 — 또는 최신 macOS로 업데이트하십시오.",
-          "This Mac doesn't have Apple's speech recognition for this lecture language. Turn on Dictation in System Settings › Keyboard and add this language, then try again — or update to the latest macOS.")
+        L("이 Mac에서는 Apple 음성 인식을 쓸 수 없어서 이 강의는 녹음만 하고 받아 적지 않습니다. 받아 적으려면 시스템 설정에서 Siri와 받아쓰기(키보드)를 켜 이 언어를 내려받거나, 설정 › 음성 인식에서 Whisper 엔진을 내려받으십시오 — 그다음 이 녹음은 ‘파일 불러오기’로 받아 적을 수 있습니다.",
+          "Apple's speech recognition isn't available on this Mac, so this lecture is recorded but not transcribed. To transcribe, turn on Siri and Dictation (Keyboard) in System Settings so this language downloads, or download the Whisper engine in Settings › Speech Recognition; then you can transcribe this recording with Open File…")
+    }
+
+    static var failing: String {
+        L("이 Mac의 Apple 음성 인식이 계속 실패해서 이 강의의 나머지는 녹음만 하고 받아 적지 않습니다. 시스템 설정에서 Siri와 받아쓰기(키보드)를 켜거나 설정 › 음성 인식에서 Whisper 엔진을 내려받은 뒤, 이 녹음은 ‘파일 불러오기’로 받아 적을 수 있습니다.",
+          "Apple's speech recognition keeps failing on this Mac, so the rest of this lecture is recorded but not transcribed. After turning on Siri and Dictation (Keyboard) in System Settings, or downloading the Whisper engine in Settings › Speech Recognition, you can transcribe this recording with Open File…")
     }
 
     /// Any thread.
     nonisolated func push(_ buffer: AVAudioPCMBuffer) { feed.push(buffer) }
 
-    /// Ends the piece being fed and waits for every piece's final result, in turn — for as long as they keep coming (a
-    /// file's last minute can still be queued), but never 20 s without one.
+    /// Ends the piece being fed and waits for every piece's final result, in turn, while they keep coming (a file's
+    /// last minute can still be queued); a piece that has said nothing for 20 s after its sound ended is given up.
     func finish() async {
         feed.close()
-        progress = Date()
-        while feed.open > 0 && Date().timeIntervalSince(progress) < 20 { try? await Task.sleep(for: .milliseconds(100)) }
-        if feed.open > 0 { log("recognizer: results did not end, giving up waiting"); feed.cancelAll() }
+        let began = Date()
+        while feed.open > 0 {
+            if let stuck = feed.stalled(after: 20) { skip(stuck) }
+            feed.kick()
+            if Date().timeIntervalSince(began) > 600 {                    // ten minutes: something never ends
+                log("recognizer: results did not end, giving up waiting")
+                feed.cancelAll()
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
         watchdog?.invalidate()
         keepPreviews()
     }
@@ -98,17 +159,27 @@ final class ClassicRecognizer: SpeechRecognizer {
         feed.cancelAll()
     }
 
+    /// A piece that stopped answering: what it showed stays, the next one goes on.
+    private func skip(_ stuck: (index: Int, task: SFSpeechRecognitionTask?)) {
+        log("recognizer: piece \(stuck.index) said nothing for 20 s after its end — moving on")
+        done.insert(stuck.index)                                     // before the cancel: a cancel isn't a failure
+        stuck.task?.cancel()
+        keepPreview(stuck.index)
+        feed.ended(stuck.index, failed: false)
+    }
+
     /// A piece's result. A partial one is the utterance so far (the preview); a complete one (an utterance's end, or the
     /// piece's final result) is written as sentences, the first taking the preview's id. Previews have no word times:
     /// they start where the piece's last written utterance ended.
     private func result(_ piece: Int, _ offset: Double, _ result: SFSpeechRecognitionResult?, _ error: Error?) {
-        if env["LECTURE_DEBUG"] == "1", let r = result {
+        if env["LECTURE_DEBUG"] == "1", let r = result {                // tests only: transcript text never goes in app.log
             let segs = r.bestTranscription.segments
-            log("classic raw piece \(piece) final=\(r.isFinal) meta=\(r.speechRecognitionMetadata != nil) words=\(segs.count) "
-                + "t=\(String(format: "%.1f", segs.first?.timestamp ?? -1))–\(String(format: "%.1f", (segs.last.map { $0.timestamp + $0.duration }) ?? -1)) "
-                + r.bestTranscription.formattedString)
+            FileHandle.standardError.write(("classic piece \(piece) final=\(r.isFinal) meta=\(r.speechRecognitionMetadata != nil) "
+                + "words=\(segs.count) t=\(String(format: "%.1f", segs.first?.timestamp ?? -1))–"
+                + "\(String(format: "%.1f", (segs.last.map { $0.timestamp + $0.duration }) ?? -1)) \(r.bestTranscription.formattedString)\n").data(using: .utf8)!)
         }
         guard !done.contains(piece) else { return }
+        feed.heard(piece)
         if let result {
             let t = result.bestTranscription
             if result.isFinal || result.speechRecognitionMetadata != nil {
@@ -125,43 +196,39 @@ final class ClassicRecognizer: SpeechRecognizer {
                 }
             }
             if result.isFinal {
+                keepPreview(piece)                   // a later utterance the final didn't include stays as shown
                 done.insert(piece)
-                progress = Date()
                 failures = 0
-                feed.ended(piece)
+                feed.ended(piece, failed: false)
             }
             return
         }
         done.insert(piece)
-        progress = Date()
-        feed.ended(piece)
-        keepPreview(piece)                       // what it heard before the error stays
+        keepPreview(piece)                           // what it heard before the error stays
         let ns = error.map { $0 as NSError }
-        if env["LECTURE_DEBUG"] == "1" || !(ns?.domain == "kAFAssistantErrorDomain" && ns?.code == 1110) {
-            log("recognizer: piece \(piece) ended: \(ns.map { "\($0.domain) \($0.code) \($0.localizedDescription)" } ?? "no result")")
-        }
-        guard let ns, !(ns.domain == "kAFAssistantErrorDomain" && ns.code == 1110) else { return }   // 1110: no speech in it
-        failures += 1
-        if failures >= 3 && !told {             // not one hiccup: it keeps failing
-            told = true
-            onError?(EngineError(message: Self.unavailable, code: "speech_unavailable"))
-        }
+        let noSpeech = ns?.domain == "kAFAssistantErrorDomain" && ns?.code == 1110
+        if !noSpeech { log("recognizer: piece \(piece) ended: \(ns.map { "\($0.domain) \($0.code) \($0.localizedDescription)" } ?? "no result")") }
+        if noSpeech { failures = 0 } else { failures += 1 }
+        feed.ended(piece, failed: !noSpeech)         // after a failure the next piece waits a moment (2 s, then 10 s)
+        if failures >= 3 { stop(Self.failing, code: "speech_unavailable", why: "3 pieces in a row failed") }   // not a hiccup
     }
 
-    /// A complete utterance — unless it is the one just written again (the final result repeats the last utterance).
+    /// A complete utterance — unless it is the one just written again (the final result repeats the last utterance; its
+    /// times may differ a little).
     private func write(_ piece: Int, _ offset: Double, _ t: SFTranscription) {
         let segs = t.segments
         let start = segs.first?.timestamp ?? 0, end = segs.last.map { $0.timestamp + $0.duration } ?? 0
-        if let w = written[piece], w.text == t.formattedString, abs(w.start - start) < 0.05, abs(w.end - end) < 0.05 { return }
+        if let w = written[piece], w.text == t.formattedString, abs(w.start - start) < 1 || start == 0 || w.start == 0 { return }
         written[piece] = (start, end, t.formattedString)
         if end > 0 { resume[piece] = end }
         finals(piece, offset, t)
     }
 
-    /// A partial result that shares nothing with the one before and is far shorter: a new utterance began.
+    /// A partial result that hardly begins like the one before and is much shorter: a new utterance began.
     private static func restarted(_ old: String, _ new: String) -> Bool {
-        guard old.count >= 6, new.count * 2 < old.count else { return false }
-        return !old.hasPrefix(String(new.prefix(2)))
+        guard old.count >= 4, new.count < old.count else { return false }
+        let shared = zip(old, new).prefix { $0 == $1 }.count
+        return shared < 2 && new.count * 2 <= old.count + 2
     }
 
     private func finals(_ piece: Int, _ offset: Double, _ t: SFTranscription) {
@@ -185,7 +252,6 @@ final class ClassicRecognizer: SpeechRecognizer {
         }
         if let s = start { lines.append((s, end, text)) }
         if segs.isEmpty && full.length > 0 { lines = [(0, 0, full as String)] }
-        if env["LECTURE_DEBUG"] == "1" { log("classic piece \(piece) at \(String(format: "%.1f", offset)) s, \(segs.count) words: \(full)") }
         var id = previews.removeValue(forKey: piece)?.id
         var wrote = false
         for (s, e, raw) in lines {
@@ -215,10 +281,10 @@ final class ClassicRecognizer: SpeechRecognizer {
     }
 
     /// The audio side (capture threads): the pieces, the one being fed, and where to cut it. One piece runs at a time
-    /// (`queue[0]`); a later one keeps its sound until its turn. A task is made outside the lock — the main queue takes
-    /// the lock too (`ended`), and the framework may need the main queue meanwhile.
+    /// (`queue[0]`); a later one keeps its sound until its turn. Tasks are made on the main queue, never on a capture
+    /// thread (Core Audio's I/O thread waits on the system-audio queue) and never under the lock.
     private final class Feed: @unchecked Sendable {
-        private final class Piece {
+        private final class Piece: @unchecked Sendable {       // its fields: under the feed's lock
             let index: Int, offset: Double
             let request = SFSpeechAudioBufferRecognitionRequest()
             var task: SFSpeechRecognitionTask?
@@ -226,6 +292,8 @@ final class ClassicRecognizer: SpeechRecognizer {
             var heldSeconds = 0.0
             var started = false, streaming = false, cut = false
             var ended: Date?                      // when its task was told the sound is over
+            var launched: Date?
+            var heard: Date?                      // its last result, partial or complete
             init(index: Int, offset: Double) {
                 self.index = index
                 self.offset = offset
@@ -236,7 +304,7 @@ final class ClassicRecognizer: SpeechRecognizer {
             }
         }
 
-        private let live: Bool
+        private let live: Bool, failTasks: Bool
         private let lock = NSCondition()
         private var recognizer: SFSpeechRecognizer?
         private var onResult: ((Int, Double, SFSpeechRecognitionResult?, Error?) -> Void)?
@@ -245,11 +313,16 @@ final class ClassicRecognizer: SpeechRecognizer {
         private var count = 0
         private var total = 0.0, length = 0.0       // seconds fed in all, and to the piece being fed
         private var quiet = 0.0, level = 0.0        // how long it has been quiet; the speech level (halving every 5 s)
-        private var closed = false, cancelled = false
+        private var closed = false, cancelled = false, off = false
+        private var failed = 0, notBefore = Date.distantPast    // failures in a row; the next task waits until then
 
-        init(live: Bool) { self.live = live }
+        init(live: Bool, failTasks: Bool) {
+            self.live = live
+            self.failTasks = failTasks
+        }
 
         var open: Int { lock.lock(); defer { lock.unlock() }; return queue.count }
+        var isClosed: Bool { lock.lock(); defer { lock.unlock() }; return closed }
 
         func configure(_ r: SFSpeechRecognizer, onResult: @escaping (Int, Double, SFSpeechRecognitionResult?, Error?) -> Void) {
             lock.lock(); defer { lock.unlock() }
@@ -262,8 +335,11 @@ final class ClassicRecognizer: SpeechRecognizer {
             let seconds = Double(buffer.frameLength) / buffer.format.sampleRate, rms = Feed.rms(float)
             lock.lock()
             // a file is read far faster than this recognizer works: its reading waits while a minute of sound is held
-            while !live && !closed && queue.reduce(0, { $0 + $1.heldSeconds }) > 60 { lock.wait(until: Date().addingTimeInterval(0.5)) }
-            guard !closed, recognizer != nil else { lock.unlock(); return }
+            // (never on the main queue, which starts the tasks)
+            while !live && !closed && !Thread.isMainThread && queue.reduce(0, { $0 + $1.heldSeconds }) > 60 {
+                lock.wait(until: Date().addingTimeInterval(0.5))
+            }
+            guard !closed, !off, recognizer != nil else { lock.unlock(); return }
             if current == nil {
                 count += 1
                 let p = Piece(index: count, offset: total)
@@ -284,27 +360,33 @@ final class ClassicRecognizer: SpeechRecognizer {
             }
             let next = startable()
             lock.unlock()
-            if let next { launch(next) }
+            if let next { DispatchQueue.main.async { self.launch(next) } }
         }
 
-        /// Under the lock: the first piece, if its task hasn't been made yet.
+        /// Under the lock: the first piece, if its task hasn't been made yet and no wait after a failure holds it back.
         private func startable() -> Piece? {
-            guard let first = queue.first, !first.started else { return nil }
+            guard !off, let first = queue.first, !first.started, Date() >= notBefore else { return nil }
             first.started = true
             return first
         }
 
-        /// Makes a piece's task, then hands it the sound it held (and its end, if it was cut meanwhile).
+        /// Main queue: makes a piece's task, then hands it the sound it held (and its end, if it was cut meanwhile).
         private func launch(_ p: Piece) {
             lock.lock()
-            let recognizer = self.recognizer, deliver = onResult
+            let recognizer = self.recognizer, deliver = onResult, stop = cancelled || off
             lock.unlock()
-            guard let recognizer, let deliver else { return }
-            let task = recognizer.recognitionTask(with: p.request) { result, error in deliver(p.index, p.offset, result, error) }
+            guard let recognizer, let deliver, !stop else { return }
+            var task: SFSpeechRecognitionTask?
+            if failTasks {                                                       // tests: every task fails
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { deliver(p.index, p.offset, nil, NSError(domain: "test", code: 1)) }
+            } else {
+                task = recognizer.recognitionTask(with: p.request) { result, error in deliver(p.index, p.offset, result, error) }
+            }
             lock.lock()
             defer { lock.broadcast(); lock.unlock() }
-            if cancelled { task.cancel(); return }
+            if cancelled || off { task?.cancel(); return }
             p.task = task
+            p.launched = Date()
             for b in p.held { p.request.append(b) }
             p.held = []
             p.heldSeconds = 0
@@ -312,21 +394,41 @@ final class ClassicRecognizer: SpeechRecognizer {
             if p.cut { p.request.endAudio(); p.ended = Date() }
         }
 
-        /// The running piece, if its sound ended more than `seconds` ago and its result still hasn't come.
+        /// Main queue: starts the first piece if it's due (a wait after a failure has passed).
+        func kick() {
+            lock.lock()
+            let next = startable()
+            lock.unlock()
+            if let next { launch(next) }
+        }
+
+        /// A result came for this piece (it's still working).
+        func heard(_ index: Int) {
+            lock.lock(); defer { lock.unlock() }
+            queue.first { $0.index == index }?.heard = Date()
+        }
+
+        /// The running piece, if its sound ended and it has said nothing for `seconds`.
         func stalled(after seconds: Double) -> (index: Int, task: SFSpeechRecognitionTask?)? {
             lock.lock(); defer { lock.unlock() }
-            guard let first = queue.first, let at = first.ended, Date().timeIntervalSince(at) > seconds else { return nil }
+            guard let first = queue.first, let at = first.ended, Date().timeIntervalSince(max(at, first.heard ?? at)) > seconds
+            else { return nil }
             return (first.index, first.task)
         }
 
-        /// A piece's final result (or error) came: the next piece's turn. If the recognizer ended it by itself while it
-        /// was still being fed (it heard the speech stop), the next buffer starts a new piece.
-        func ended(_ index: Int) {
+        /// Main queue: a piece's final result (or error) came — the next piece's turn, at once or, after a failure, in a
+        /// moment. If the recognizer ended it by itself while it was still being fed (it heard the speech stop), the next
+        /// buffer starts a new piece.
+        func ended(_ index: Int, failed bad: Bool) {
             lock.lock()
+            var quick = false                     // it ended within a second of starting (another app took the recognizer?)
             if let i = queue.firstIndex(where: { $0.index == index }) {
                 let p = queue.remove(at: i)
                 if p === current { current = nil }
+                quick = live && (p.launched.map { Date().timeIntervalSince($0) < 1 } ?? false)   // live: never legitimate
             }
+            failed = bad ? failed + 1 : 0
+            notBefore = bad ? Date().addingTimeInterval(failed == 1 ? 2 : 10) : quick ? Date().addingTimeInterval(1) : .distantPast
             let next = startable()
             lock.broadcast()
             lock.unlock()
@@ -341,6 +443,18 @@ final class ClassicRecognizer: SpeechRecognizer {
             current = nil
             lock.broadcast()
             lock.unlock()
+        }
+
+        /// Not transcribing any more (it can't, or keeps failing): sound is dropped, nothing is waited for.
+        func disable() {
+            lock.lock()
+            off = true
+            let running = queue.compactMap(\.task)
+            queue = []
+            current = nil
+            lock.broadcast()
+            lock.unlock()
+            running.forEach { $0.cancel() }
         }
 
         func cancelAll() {

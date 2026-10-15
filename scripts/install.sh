@@ -40,6 +40,13 @@ curl -fL --progress-bar "$URL" -o "$tmp/app.zip"
 ditto -x -k "$tmp/app.zip" "$tmp/unzipped"
 [ -d "$tmp/unzipped/$APP_NAME" ] || APP_NAME="$OLD_NAME"      # releases before 2.5.1 use the old name
 [ -d "$tmp/unzipped/$APP_NAME" ] || { say "내려받은 파일이 올바르지 않아요. 잠시 후 다시 시도해 주세요." "The download doesn't look right. Please try again in a moment."; exit 1; }
+# the app may need a newer macOS than this script knows of: then the installed app stays as it is
+need="$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$tmp/unzipped/$APP_NAME/Contents/Info.plist" 2>/dev/null || echo 0)"
+if [ "$(printf '%s\n%s\n' "$need" "$ver" | sort -V | head -1)" != "$need" ]; then
+  say "이 버전은 macOS $need 이상이 필요해요. (이 Mac: macOS $ver) ${where_ko}에서 macOS를 업데이트(무료)한 뒤 이 명령을 다시 실행해 주세요. 설치된 앱은 그대로 두었어요." \
+      "This version needs macOS $need or later. (This Mac: macOS $ver) Update macOS (free) in $where_en, then run this command again. The installed app was left as it is."
+  exit 1
+fi
 
 dest="${LECTURE_INSTALL_DIR:-/Applications}"
 [ -w "$dest" ] || { dest="$HOME/Applications"; mkdir -p "$dest"; }

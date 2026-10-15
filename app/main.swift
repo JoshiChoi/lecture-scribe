@@ -291,11 +291,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKSc
 
     func openLink(_ url: URL) { NSWorkspace.shared.open(url) }
 
-    /// macOS 14.2–15: Software Update (the notice recommending the latest macOS); Speech Recognition (its permission).
+    /// macOS 14.2–15: Software Update (the notice recommending the latest macOS); Speech Recognition (its permission);
+    /// Siri (macOS 14/15 transcribe with Siri's language models).
     func openPane(_ name: String) {
         let pages = name == "update" ? ["x-apple.systempreferences:com.apple.Software-Update-Settings.extension",
                                         "x-apple.systempreferences:com.apple.preferences.softwareupdate"]
-                  : name == "speech" ? ["x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition"] : []
+                  : name == "speech" ? ["x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition"]
+                  : name == "siri" ? ["x-apple.systempreferences:com.apple.Siri-Settings.extension"] : []
         for s in pages { if let u = URL(string: s), NSWorkspace.shared.open(u) { break } }
     }
 

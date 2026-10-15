@@ -639,7 +639,9 @@ struct LectureLanguage: Sendable {
     }
 
     /// macOS 14.2–15: the languages Apple's older recognizer writes on this Mac without the network (their models are
-    /// here — macOS fetches them with Dictation's languages). None at all: Korean and English, and starting says why.
+    /// here — macOS fetches them with Siri's and Dictation's languages). Korean and English are always offered: a lecture
+    /// in one whose model isn't here is still recorded, and starting says how to get it (or the Whisper engine) — the
+    /// lecture language is never switched behind the user's back.
     @MainActor private static func classic() -> [LectureLanguage] {
         let supported = Set(SFSpeechRecognizer.supportedLocales().map { $0.identifier(.bcp47) })
         var out: [LectureLanguage] = []
@@ -648,9 +650,9 @@ struct LectureLanguage: Sendable {
                 supported.contains($0) && SFSpeechRecognizer(locale: Locale(identifier: $0))?.supportsOnDeviceRecognition == true
             }
             if let l = onDevice { out.append(LectureLanguage(id: id, locale: Locale(identifier: l), dictation: false)) }
+            else if duo(id) { out.append(LectureLanguage(id: id, locale: Locale(identifier: locales[0]), dictation: false)) }
         }
-        return out.isEmpty ? [LectureLanguage(id: "ko", locale: Locale(identifier: "ko-KR"), dictation: false),
-                              LectureLanguage(id: "en", locale: Locale(identifier: "en-US"), dictation: false)] : out
+        return out
     }
 
     /// The model that writes this language; `previews`: live ("volatile") results too.
