@@ -1422,7 +1422,8 @@ enum SlidesPDF {
         let titles = SlideTitles.read(images.map { known[$0.0] ?? SlideTitles.lines($0.1) },   // read while recording, or now
                                       within: images.map { crops[$0.0] })
         let started = Date()
-        let texts = pictures.map { cancelled() ? [] : SlideText.read($0) }    // what each slide says: searchable in the PDF
+        let languages = SlideText.languages(for: Settings.load().language)
+        let texts = pictures.map { cancelled() ? [] : SlideText.read($0, languages: languages) }   // searchable in the PDF
         log("slides pdf: read the text of \(pictures.count) slides in \(String(format: "%.1f", Date().timeIntervalSince(started))) s")
         let deck = Deck(title: coverTitle(name: name, header: header, file: transcript), header: header,
                         said: rawLines.filter { !$0.2.isEmpty }.count, end: end,     // as the transcript counts them
@@ -1809,14 +1810,25 @@ enum SlidesPDF {
 /// near the top of most slides alike (the browser's address bar, the course site's banner) — with its second line
 /// when the title runs onto one. No title (a photo, a blank slide): nil, and the slide keeps just its number.
 /// What a slide says, read with Vision on the device — laid over the slide in the PDF as invisible text (SlidesPDF.invisible).
-/// Korean and English, as the titles are read; about 0.2–0.4 s a slide (the first read in a process loads the model).
+/// Korean and English (as the titles are read), or the lecture's language with English when Vision reads it; about 0.15
+/// s a slide on an M2 (the first read in a process loads the model).
 enum SlideText {
     struct Line { let text: String; let box: CGRect }       // box: fractions of the picture, origin bottom left (Vision's)
 
-    static func read(_ image: CGImage) -> [Line] {
+    /// Vision's languages for a lecture language: its own with English, if Vision reads it; otherwise Korean and English.
+    static func languages(for lecture: String) -> [String] {
+        let vision = ["ja": "ja-JP", "zh-Hans": "zh-Hans", "zh-Hant": "zh-Hant", "yue-Hant": "yue-Hant", "yue-Hans": "yue-Hans",
+                      "es": "es-ES", "fr": "fr-FR", "de": "de-DE", "it": "it-IT", "pt-BR": "pt-BR", "pt-PT": "pt-PT", "ru": "ru-RU",
+                      "uk": "uk-UA", "vi": "vi-VT", "th": "th-TH", "ar": "ar-SA"]
+        guard let v = vision[lecture], (try? VNRecognizeTextRequest().supportedRecognitionLanguages())?.contains(v) == true
+        else { return ["ko-KR", "en-US"] }
+        return [v, "en-US"]
+    }
+
+    static func read(_ image: CGImage, languages: [String] = ["ko-KR", "en-US"]) -> [Line] {
         let req = VNRecognizeTextRequest()
         req.recognitionLevel = .accurate
-        req.recognitionLanguages = ["ko-KR", "en-US"]
+        req.recognitionLanguages = languages
         req.usesLanguageCorrection = true
         do { try VNImageRequestHandler(cgImage: image).perform([req]) } catch { return [] }
         return (req.results ?? []).compactMap { o in              // in Vision's order: top down, left to right

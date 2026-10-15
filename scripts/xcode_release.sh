@@ -43,6 +43,10 @@ for f in "$ARCHIVE"/Products/Applications/*.app/Contents/MacOS/* "$ARCHIVE"/Prod
   m=$(vtool -show-build "$f" | awk '/minos/ {print $2; exit}')            # one app for macOS 14.2+
   [ "$m" = "14.2" ] || { echo "  $(basename "$f") needs macOS $m — everything must run on 14.2"; exit 1; }
 done
+for a in "$ROOT"/vendor/whisper/lib/*.a; do                     # the engine libraries linked in: every object file
+  m=$(otool -l "$a" | awk '/minos/ {print $2}' | sort -uV | tail -1)
+  [ "$m" = "14.2" ] || { echo "  $(basename "$a") needs macOS $m — rebuild it (scripts/build_whisper.sh)"; exit 1; }
+done
 
 options() {   # export options: $1 = method
   cat > "$OUT/export.plist" <<PLIST

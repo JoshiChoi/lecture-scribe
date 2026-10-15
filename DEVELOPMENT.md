@@ -265,8 +265,12 @@ with a Software Update button), 설정 › 음성 인식 says the same, and `scr
   model, or not available within 1.5 s → `speech_unavailable` (buttons: 설정 › 음성 인식 for the Whisper engine, and
   Siri's settings); 3 pieces in a row failing (other than "no speech") → the same notice; a failed piece's successor
   waits 2 s, then 10 s. In each case the recognizer stops (sound dropped, nothing waited for) and the session goes on
-  recording — the recording can be transcribed later with 파일 불러오기. The page keeps `speech_*` notices when
-  recording starts.
+  recording — the recording can be transcribed later with 파일 불러오기. A file is refused instead (no permission,
+  no model: notice, no files — a copy of its sound would be no use). The page keeps `speech_*` notices when
+  recording starts. `isAvailable` isn't required (it may be false offline); a piece that ends within a second of
+  starting, live, also makes the next one wait a second. Known limits: after 3 failures in a row transcription stays
+  off for the rest of that session (the recording goes on); a saved lecture language other than ko/en whose model
+  isn't on the Mac is still switched (with a log line).
 - **Pieces**: made for short dictation, so the sound goes to it in pieces cut at a pause once a piece has 20 s (0.35 s
   under 15 % of the recent speech level; 0.15 s after 40 s; never longer than 55 s).
 - **One task at a time** (measured on macOS 27): a new recognition task ends the running one with "no speech"
@@ -545,7 +549,8 @@ with its text normalization on it stops after the first sentence.
   in the top 16 % (browser or player chrome), are dropped; the largest line wins (a near tie
   goes to the higher one) and a second line right under it is joined; with no title, just the number. Titles are read
   on a background queue as each slide is kept (the first read in a process loads the model, \~28 s; then 0.2–0.4 s).
-  Each slide page also carries the slide's text, read with Vision on the device (`SlideText`, ko-KR + en-US, accurate)
+  Each slide page also carries the slide's text, read with Vision on the device (`SlideText`, accurate; ko-KR + en-US,
+  or the lecture language with en-US when Vision reads it — ja, zh, es, fr, de, it, pt, ru, uk, vi, th, ar)
   and laid over the picture as invisible text (`SlidesPDF.invisible`: text rendering mode 3, each line stretched to the
   width Vision measured), so the PDF can be searched and the slide's words selected and copied while the picture looks
   the same (2.7.1; 8 slides in 1.1 s on an M2; landscape, split and classic — not the cover's thumbnail).
