@@ -3,4 +3,4 @@
 "CFBundleName" = "Arc Lecture Transcriber";
 "NSAudioCaptureUsageDescription" = "Records the sound playing on this Mac so the lecture can be transcribed. The microphone is not used.";
 "NSSpeechRecognitionUsageDescription" = "Transcribes recorded lectures on this Mac. Sound and text never leave it.";
-"NSHumanReadableCopyright" = "© 2026 JoshiChoi · MIT License · Apple on-device speech recognition";
+"NSHumanReadableCopyright" = "© 2026 Jun Hyuk Choi · MIT License · Apple on-device speech recognition";

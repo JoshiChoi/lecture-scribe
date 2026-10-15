@@ -380,6 +380,7 @@
   "Open Folder": "Открыть папку",
   "APPEARANCE": "ОФОРМЛЕНИЕ",
   "Couldn't get the sound back after the output device changed. Click Stop, then start again.": "После смены устройства вывода звук получить не удалось. Нажмите «Стоп» и начните заново.",
+  "The lecture's sound isn't coming in. If the lecture is playing and this message stays, click Stop, then start again. Everything recorded so far will be saved.": "Звук лекции не поступает. Если лекция воспроизводится, а это сообщение не исчезает, нажмите «Стоп» и начните заново. Все, что уже записано, будет сохранено.",
   "Recording paused for a moment because of a call or another app. It will resume when that ends.": "Запись приостановлена из-за звонка или другого приложения. Она возобновится, когда это закончится.",
   "Recording has resumed.": "Запись возобновлена.",
   "Microphone recording stopped. Tap Stop, then start again. Everything recorded so far will be saved.": "Запись с микрофона остановилась. Коснитесь «Стоп» и начните заново. Все, что уже записано, будет сохранено.",

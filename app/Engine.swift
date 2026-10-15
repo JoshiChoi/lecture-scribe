@@ -1162,6 +1162,9 @@ final class Session {
         guard mode == .live, !stopping, on != paused else { return }
         paused = on
         gate.set(on)
+        #if os(macOS)
+        (source as? SystemAudioSource)?.setUserPaused(on)
+        #endif
         if on { pausedSince = Date() } else if let s = pausedSince { pausedTotal += Date().timeIntervalSince(s); pausedSince = nil }
         emitPaused()
         log(on ? "paused" : "resumed")

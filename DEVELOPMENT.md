@@ -89,7 +89,11 @@ that fail their checksum), `LECTURE_MODEL_URL=<url>` + `build/v2/LectureScribe -
 download from a local server: `python3 -m http.server 8977 --directory models`; `--download-whisper` still works),
 `LECTURE_DEBUG=1` (the runtimes' logs, per-piece timings and Qwen3's re-reads in app.log).
 
-Hooks (environment variables): `LECTURE_OUT_DIR`, `LECTURE_AUTOSTART=1`, `LECTURE_AUTOSTOP=<sec>`,
+Hooks (environment variables): `LECTURE_OUT_DIR`, `LECTURE_AUTOSTART=1`, `LECTURE_AUTOSTOP=<sec>`, the tap self-heal's
+`LECTURE_TEST_TAP_TONE=1` (a tone in place of what the tap hears), `LECTURE_TEST_TAP_SILENCE` / `LECTURE_TEST_TAP_CHOP=<from>-<to>,…`
+(seconds of tap audio: all silence, or 110 ms silent pieces), `LECTURE_TEST_TAP_HEALS=<n>` (the failure ends after n new taps),
+`LECTURE_TEST_TAP_DEAD=<n>` (the next n new taps hand nothing over), `LECTURE_TEST_PLAYING=1` ("another app plays sound") —
+the app logs them as read (`capture: test switches — …`);
 `LECTURE_FAKE_INPUT=<file>` (the file streamed in real time instead of system audio — silent),
 `LECTURE_DEV_DIR=<checkout>` (UI from the checkout), `LECTURE_DEBUG=1` (English-phrase decisions on
 stderr), `LECTURE_TEST_OPEN=library|<session>|trash:<session>|delete:<session>` (the page opens 기록 or a
@@ -400,6 +404,16 @@ with its text normalization on it stops after the first sentence.
   `NSAudioCaptureUsageDescription`; without the entitlement it delivers silence and no error.
 - `AudioDeviceStart` blocks while the permission prompt is on screen, so capture starts off the main thread.
 - The tap delivers no samples while nothing plays, so the "no sound" watchdog is wall-clock based (20 s).
+- macOS 26 can keep the tap calling back on schedule while it delivers only exact zeros — chopped, then total — as the
+  lecture plays on (2026-10-13, AirPods: 10 → 30 → 55 → 100 % over eight minutes; Apple forums thread 825780). Only a new
+  tap and aggregate device bring the sound back. `TapWatch` (app/Audio.swift) watches what the tap delivers: 5 s of exact
+  silence (10, then 20 s after a new tap proves unneeded), heavy chop (≥ 6 silent pieces ≥ 40 ms in 10 s, ≥ 40 % silent)
+  or light chop (maybe the lecture's own gaps). While another app plays sound (kAudioProcessPropertyIsRunningOutput) and
+  after the session heard sound, a severe sign gets a new tap on waits of 0, 15 s, 1, 5, 10 min; light chop a probe every
+  10 min to an hour; a stall check every 5 s replaces a tap that hands nothing over (waits up to 1 min). Each new tap is
+  judged on its first 15 s; the user is told (capture_stopped) only after 45 s of silence despite new taps, and again
+  (capture_resumed) after 10 s of sound. Tap changes run on the `control` queue — Core Audio is never asked to stop a
+  device from `ioQueue`, where IO blocks are dispatched synchronously. Live test: tests/LIVE_TAP_TEST.md.
 - WKWebView in the sandbox needs `com.apple.security.network.client`, even for local pages.
 - Ad-hoc signatures change with every build, and macOS then asks for System Audio Recording again;
   certificate-signed builds keep the permission.

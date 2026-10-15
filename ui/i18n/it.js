@@ -372,6 +372,7 @@
   "Open Folder": "Apri cartella",
   "APPEARANCE": "ASPETTO",
   "Couldn't get the sound back after the output device changed. Click Stop, then start again.": "Impossibile recuperare l’audio dopo il cambio del dispositivo di uscita. Fai clic su Stop, poi di nuovo su Avvia.",
+  "The lecture's sound isn't coming in. If the lecture is playing and this message stays, click Stop, then start again. Everything recorded so far will be saved.": "L’audio della lezione non arriva. Se la lezione è in riproduzione e questo messaggio resta, fai clic su Stop, poi di nuovo su Avvia. Tutto ciò che è stato registrato finora verrà salvato.",
   "Recording paused for a moment because of a call or another app. It will resume when that ends.": "Registrazione sospesa per un momento a causa di una chiamata o di un’altra app. Riprenderà al termine dell’interruzione.",
   "Recording has resumed.": "La registrazione è ripresa.",
   "Microphone recording stopped. Tap Stop, then start again. Everything recorded so far will be saved.": "La registrazione dal microfono si è interrotta. Tocca Stop, poi di nuovo Avvia. Tutto ciò che è stato registrato finora verrà salvato.",

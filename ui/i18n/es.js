@@ -372,6 +372,7 @@
   "Open Folder": "Abrir carpeta",
   "APPEARANCE": "ASPECTO",
   "Couldn't get the sound back after the output device changed. Click Stop, then start again.": "No se ha podido recuperar el sonido tras cambiar el dispositivo de salida. Haz clic en Detener y vuelve a empezar.",
+  "The lecture's sound isn't coming in. If the lecture is playing and this message stays, click Stop, then start again. Everything recorded so far will be saved.": "No llega el sonido de la clase. Si la clase se está reproduciendo y este mensaje no desaparece, haz clic en Detener y vuelve a empezar. Se guardará todo lo grabado hasta ahora.",
   "Recording paused for a moment because of a call or another app. It will resume when that ends.": "La grabación se ha pausado un momento por una llamada u otra app. Se reanudará cuando termine.",
   "Recording has resumed.": "La grabación se ha reanudado.",
   "Microphone recording stopped. Tap Stop, then start again. Everything recorded so far will be saved.": "La grabación con el micrófono se ha detenido. Toca Detener y vuelve a empezar. Se guardará todo lo grabado hasta ahora.",

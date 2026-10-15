@@ -372,6 +372,7 @@
   "Open Folder": "Abrir Pasta",
   "APPEARANCE": "APARÊNCIA",
   "Couldn't get the sound back after the output device changed. Click Stop, then start again.": "Não foi possível recuperar o som após a mudança do dispositivo de saída. Clique em Parar e inicie novamente.",
+  "The lecture's sound isn't coming in. If the lecture is playing and this message stays, click Stop, then start again. Everything recorded so far will be saved.": "O som da aula não está chegando. Se a aula estiver sendo reproduzida e esta mensagem continuar, clique em Parar e inicie novamente. Tudo o que foi gravado até agora será salvo.",
   "Recording paused for a moment because of a call or another app. It will resume when that ends.": "A gravação foi pausada por causa de uma ligação ou de outro app. Ela será retomada quando isso terminar.",
   "Recording has resumed.": "A gravação foi retomada.",
   "Microphone recording stopped. Tap Stop, then start again. Everything recorded so far will be saved.": "A gravação pelo microfone parou. Toque em Parar e inicie novamente. Tudo o que foi gravado até agora será salvo.",

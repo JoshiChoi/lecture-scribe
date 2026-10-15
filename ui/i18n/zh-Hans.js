@@ -368,6 +368,7 @@
   "Open Folder": "打开文件夹",
   "APPEARANCE": "外观",
   "Couldn't get the sound back after the output device changed. Click Stop, then start again.": "输出设备更改后，未能恢复声音。请点按“停止”，然后重新开始。",
+  "The lecture's sound isn't coming in. If the lecture is playing and this message stays, click Stop, then start again. Everything recorded so far will be saved.": "课程的声音没有传进来。如果课程正在播放，这条消息却一直显示，请点按“停止”，然后重新开始。此前录制的内容都会保存。",
   "Recording paused for a moment because of a call or another app. It will resume when that ends.": "录音因来电或其他 App 而暂时中断，结束后将继续录音。",
   "Recording has resumed.": "已继续录音。",
   "Microphone recording stopped. Tap Stop, then start again. Everything recorded so far will be saved.": "麦克风录音已停止。请轻点“停止”，然后重新开始。此前录制的内容都会保存。",

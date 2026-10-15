@@ -368,6 +368,7 @@
   "Open Folder": "Mở thư mục",
   "APPEARANCE": "GIAO DIỆN",
   "Couldn't get the sound back after the output device changed. Click Stop, then start again.": "Không thể thu lại âm thanh sau khi thiết bị đầu ra thay đổi. Hãy bấm Dừng rồi bắt đầu lại.",
+  "The lecture's sound isn't coming in. If the lecture is playing and this message stays, click Stop, then start again. Everything recorded so far will be saved.": "Âm thanh bài giảng không vào được. Nếu bài giảng đang phát mà thông báo này vẫn còn, hãy bấm Dừng rồi bắt đầu lại. Mọi nội dung đã ghi đến lúc này sẽ được lưu.",
   "Recording paused for a moment because of a call or another app. It will resume when that ends.": "Đã tạm dừng ghi âm trong giây lát do có cuộc gọi hoặc ứng dụng khác. Ghi âm sẽ tiếp tục khi việc đó kết thúc.",
   "Recording has resumed.": "Đã tiếp tục ghi âm.",
   "Microphone recording stopped. Tap Stop, then start again. Everything recorded so far will be saved.": "Việc ghi âm qua micrô đã dừng. Hãy chạm vào Dừng rồi bắt đầu lại. Mọi nội dung đã ghi đến lúc này sẽ được lưu.",

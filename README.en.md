@@ -60,7 +60,7 @@ Apple on-device speech recognition · free · open source · everything stays on
 ## Requirements
 
 - **macOS 26 (Tahoe) or later** on an Apple Silicon (M1 or later) Mac
-- On macOS 14.2–15, use [v1 (the Whisper version)](https://github.com/WeldingArc/arc-lecture-transcriber/releases/tag/v1.0.0). The install command below picks the right version for your macOS automatically.
+- On macOS 14.2–15, the install command below installs [v1](https://github.com/WeldingArc/arc-lecture-transcriber/releases/tag/v1.0.0), the older Whisper version (with the old icon). To get the current version, first update macOS in System Settings › General › Software Update — free for every Apple Silicon Mac — then run the command.
 
 ## Install
 
