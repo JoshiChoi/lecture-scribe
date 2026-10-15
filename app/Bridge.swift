@@ -25,7 +25,7 @@ protocol Platform: AnyObject {
     func openLogs()
     /// The app's language changed: menus (Mac) and the page in the new one.
     func languageChanged()
-    /// Mac: a System Settings page — "update" (Software Update), "speech" (Privacy › Speech Recognition).
+    /// Mac: a System Settings page — "update" (Software Update), "speech" (Privacy › Speech Recognition), "siri".
     func openPane(_ name: String)
 }
 

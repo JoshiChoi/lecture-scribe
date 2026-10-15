@@ -474,9 +474,12 @@
   "Documents": "書類",
   "Desktop": "デスクトップ",
   "Open Software Update": "ソフトウェアアップデートを開く",
-  "Speech Recognition is turned off for this app, so it can't transcribe. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition.": "このアプリの音声認識がオフになっているため、文字起こしできません。“システム設定” › “プライバシーとセキュリティ” › “音声認識”でArc Lecture Transcriber（Arc 강의 받아쓰기）をオンにしてください。",
-  "This Mac doesn't have Apple's speech recognition for this lecture language. Turn on Dictation in System Settings › Keyboard and add this language, then try again — or update to the latest macOS.": "このMacには、この講義の言語に対応するApple音声認識がありません。“システム設定” › “キーボード”で音声入力をオンにしてこの言語を追加してから、もう一度お試しください。または最新のmacOSにアップデートしてください。",
   "Apple's older speech recognition on this macOS · may not work well": "このmacOSの旧型のApple音声認識 · うまく動作しない場合があります",
-  "On this Mac's macOS ({0}), the app transcribes with Apple's older speech recognition, which may not work well. For better transcripts, update to the latest macOS (free).": "このMacのmacOS（{0}）では旧型のApple音声認識で文字起こしするため、うまく動作しない場合があります。より正確に文字起こしするには、最新のmacOSにアップデートしてください（無料）。"
+  "On this Mac's macOS ({0}), the app transcribes with Apple's older speech recognition, which may not work well. For better transcripts, update to the latest macOS (free).": "このMacのmacOS（{0}）では旧型のApple音声認識で文字起こしするため、うまく動作しない場合があります。より正確に文字起こしするには、最新のmacOSにアップデートしてください（無料）。",
+  "Speech Recognition Settings": "音声認識の設定",
+  "Open Siri Settings": "Siriの設定を開く",
+  "Speech Recognition is turned off for this app, so this lecture is recorded but not transcribed. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition; then you can transcribe this recording with Open File…": "このアプリの音声認識がオフになっているため、この講義は録音のみで文字起こしされません。“システム設定” › “プライバシーとセキュリティ” › “音声認識”でArc Lecture Transcriber（Arc 강의 받아쓰기）をオンにすると、この録音を“ファイルを開く…”で文字起こしできます。",
+  "Apple's speech recognition isn't available on this Mac, so this lecture is recorded but not transcribed. To transcribe, turn on Siri and Dictation (Keyboard) in System Settings so this language downloads, or download the Whisper engine in Settings › Speech Recognition; then you can transcribe this recording with Open File…": "このMacではApple音声認識を使用できないため、この講義は録音のみで文字起こしされません。文字起こしするには、“システム設定”でSiriと音声入力（キーボード）をオンにしてこの言語をダウンロードするか、設定 › 音声認識でWhisperエンジンをダウンロードしてください。その後、この録音を“ファイルを開く…”で文字起こしできます。",
+  "Apple's speech recognition keeps failing on this Mac, so the rest of this lecture is recorded but not transcribed. After turning on Siri and Dictation (Keyboard) in System Settings, or downloading the Whisper engine in Settings › Speech Recognition, you can transcribe this recording with Open File…": "このMacのApple音声認識が失敗し続けているため、この講義の残りは録音のみで文字起こしされません。“システム設定”でSiriと音声入力（キーボード）をオンにするか、設定 › 音声認識でWhisperエンジンをダウンロードすると、この録音を“ファイルを開く…”で文字起こしできます。"
  }
 };

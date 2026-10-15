@@ -2870,6 +2870,15 @@
     if (state.rec === "idle" && state.engine === "ready") setStatus(readyText());
   }
 
+  /** 설정, scrolled to 음성 인식 (the engines). */
+  function openEngines() {
+    openSettings();
+    const to = () => {
+      const sc = $("settings").querySelector(".sheet-body"), g = $("setEngines").closest(".set-group") || $("setEngines");
+      sc.scrollTop += g.getBoundingClientRect().top - sc.getBoundingClientRect().top - 14;
+    };
+    setTimeout(to, 300);
+  }
   function openSettings() {
     closeMenus();
     if (dialog.saved) return;                         // a dialog is waiting for an answer
@@ -3078,7 +3087,7 @@
         slideCount = 0;
         if (!ev.replay) Object.assign(state, { paused: false, pausedTotal: 0, pausedSince: 0 });   // a reload: "paused" follows
         live.hide();
-        $("notice").classList.remove("show");
+        if (!noticeCode.startsWith("speech_")) $("notice").classList.remove("show");   // why it isn't transcribing stays
         setStatus(recStatus());
         $("timer").textContent = state.mode === "file" ? "0%" : "00:00";
         clearInterval(state.timer);
@@ -3198,8 +3207,11 @@
       } else if (ev.code === "capture_resumed") {
         if (noticeCode.startsWith("capture_")) $("notice").classList.remove("show");
         toast(ev.msg, 3600);
-      } else if (ev.code === "older_macos" || ev.code === "speech_unavailable") {      // macOS 14.2–15: the older recognizer
+      } else if (ev.code === "older_macos") {                                   // macOS 14.2–15: the older recognizer
         notice(ev.msg, [[L("소프트웨어 업데이트 열기", "Open Software Update"), () => send("openPane", { pane: "update" })]], ev.code);
+      } else if (ev.code === "speech_unavailable") {                            // recording without a transcript: how to get one
+        notice(ev.msg, [[L("음성 인식 설정", "Speech Recognition Settings"), openEngines],
+                        [L("Siri 설정 열기", "Open Siri Settings"), () => send("openPane", { pane: "siri" })]], ev.code);
       } else if (ev.code === "speech_denied") {
         notice(ev.msg, [[L("권한 설정 열기", "Open Privacy Settings"), () => send("openPane", { pane: "speech" })]], ev.code);
       } else if (["slides_on", "slides_note", "slides_missing"].includes(ev.code)) {
@@ -4178,12 +4190,7 @@
     const kind = new URLSearchParams(location.search).get("shot");
     if (kind !== "start") demo.still();     // start: the start screen as it first appears
     if (kind === "settings") setTimeout(() => {                        // &at=engines: scrolled to 음성 인식
-      openSettings();
-      const to = () => {
-        const sc = $("settings").querySelector(".sheet-body"), g = $("setEngines").closest(".set-group") || $("setEngines");
-        sc.scrollTop += g.getBoundingClientRect().top - sc.getBoundingClientRect().top - 14;
-      };
-      if (new URLSearchParams(location.search).get("at") === "engines") { setTimeout(to, 400); setTimeout(to, 1000); }
+      if (new URLSearchParams(location.search).get("at") === "engines") openEngines(); else openSettings();
     }, 120);
     if (kind === "slides" || kind === "slidescard" || kind === "slidesfind") setTimeout(() => {   // recording with 슬라이드 PDF
       $("sl").checked = true;

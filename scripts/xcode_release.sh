@@ -39,6 +39,10 @@ xcodebuild archive -project LectureScribe.xcodeproj -scheme LectureScribe -confi
   -destination 'generic/platform=macOS' -archivePath "$ARCHIVE" \
   DEVELOPMENT_TEAM="$TEAM_ID" ${BUILD_NUMBER:+CURRENT_PROJECT_VERSION=$BUILD_NUMBER} \
   -allowProvisioningUpdates -quiet
+for f in "$ARCHIVE"/Products/Applications/*.app/Contents/MacOS/* "$ARCHIVE"/Products/Applications/*.app/Contents/Frameworks/*.dylib; do
+  m=$(vtool -show-build "$f" | awk '/minos/ {print $2; exit}')            # one app for macOS 14.2+
+  [ "$m" = "14.2" ] || { echo "  $(basename "$f") needs macOS $m — everything must run on 14.2"; exit 1; }
+done
 
 options() {   # export options: $1 = method
   cat > "$OUT/export.plist" <<PLIST
