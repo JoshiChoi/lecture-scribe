@@ -476,6 +476,11 @@
   "Stop Transcribing": "Detener transcripción",
   "Downloads": "Descargas",
   "Documents": "Documentos",
-  "Desktop": "Escritorio"
+  "Desktop": "Escritorio",
+  "Open Software Update": "Abrir Actualización de software",
+  "Speech Recognition is turned off for this app, so it can't transcribe. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition.": "El reconocimiento de voz está desactivado para esta app, así que no puede transcribir. Activa Arc Lecture Transcriber (Arc 강의 받아쓰기) en Ajustes del Sistema › Privacidad y seguridad › Reconocimiento de voz.",
+  "This Mac doesn't have Apple's speech recognition for this lecture language. Turn on Dictation in System Settings › Keyboard and add this language, then try again — or update to the latest macOS.": "Este Mac no tiene el reconocimiento de voz de Apple para el idioma de esta clase. Activa Dictado en Ajustes del Sistema › Teclado y añade este idioma; luego vuelve a intentarlo. O actualiza a la última versión de macOS.",
+  "Apple's older speech recognition on this macOS · may not work well": "El reconocimiento de voz antiguo de Apple en este macOS · puede no funcionar bien",
+  "On this Mac's macOS ({0}), the app transcribes with Apple's older speech recognition, which may not work well. For better transcripts, update to the latest macOS (free).": "En el macOS de este Mac ({0}), la app transcribe con el reconocimiento de voz antiguo de Apple, que puede no funcionar bien. Para obtener mejores transcripciones, actualiza a la última versión de macOS (es gratis)."
  }
 };

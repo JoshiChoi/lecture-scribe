@@ -23,7 +23,7 @@ Apple 온디바이스 음성 인식 · 무료 · 오픈소스 · 모든 처리�
 
 ## 주요 기능
 
-- **음성 인식:** Apple이 macOS에 기본으로 제공하는 <b>온디바이스 음성 인식(SpeechAnalyzer)</b>으로 Mac 안에서 바로 받아 적습니다. 강의 언어의 음성 인식 모델이 Mac에 없을 때만 처음 한 번 Apple에서 내려받으며, 강의 내용은 외부로 전송되지 않습니다.
+- **음성 인식:** Apple이 macOS에 기본으로 제공하는 <b>온디바이스 음성 인식(SpeechAnalyzer)</b>으로 Mac 안에서 바로 받아 적습니다(macOS 14.2\~15에서는 Apple의 예전 온디바이스 음성 인식 — 요구 사항 참고). 강의 언어의 음성 인식 모델이 Mac에 없을 때만 처음 한 번 Apple에서 내려받으며, 강의 내용은 외부로 전송되지 않습니다.
 - **다른 음성 인식 엔진 선택(선택 사항).** ‘설정 › 음성 인식’에서 한 번 내려받으면 Apple 대신 사용할 수 있습니다. 모두 Mac 안에서만 작동하며, 필요 없으면 삭제하면 됩니다. (Apple보다 전력을 더 사용합니다.)
   - **Qwen3-ASR** (Alibaba의 공개 모델, 약 1.5GB) — 한국어와 영어가 섞인 강의, 억양이 강한 영어에 가장 정확합니다. (한국어 문장 속 외국인 이름을 영어 철자로 적기도 하고, 한국어 억양이 아주 강한 짧은 영어 문장은 한글로, 또렷하지 않은 짧은 한국어 말은 엉뚱한 영어로 적을 때도 있습니다. 영어 강의 중의 일본어는 한국어로 적힙니다.)
   - **Whisper large-v3 turbo** (OpenAI의 공개 모델, 약 575MB)
@@ -59,8 +59,8 @@ Apple 온디바이스 음성 인식 · 무료 · 오픈소스 · 모든 처리�
 
 ## 요구 사항
 
-- **macOS 26 (Tahoe) 이상**, Apple Silicon(M1 이상) Mac
-- macOS 14.2\~15에서는 아래 설치 명령이 예전 Whisper 버전인 [v1](https://github.com/WeldingArc/arc-lecture-transcriber/releases/tag/v1.0.0)(예전 아이콘)을 설치합니다. 최신 버전을 쓰려면 먼저 시스템 설정 › 일반 › 소프트웨어 업데이트에서 macOS를 업데이트한 뒤(Apple Silicon Mac은 모두 무료) 설치 명령을 실행하십시오.
+- **macOS 14.2 이상**, Apple Silicon(M1 이상) Mac — **macOS 26 (Tahoe) 이상 권장**
+- macOS 14.2\~15에서는 Apple의 예전 음성 인식으로 받아 적어서 잘 동작하지 않을 수 있습니다(앱과 설치 명령이 알려 줍니다). 강의 언어도 그 Mac의 받아쓰기가 지원하는 언어로 정해집니다. 가장 정확하게 받아 적으려면 시스템 설정 › 일반 › 소프트웨어 업데이트에서 최신 macOS로 업데이트하십시오(Apple Silicon Mac은 모두 무료).
 
 ## 설치
 
@@ -145,7 +145,7 @@ rm -rf ~/Library/Application\ Support/LectureScribe/models
 ## 동작 원리
 
 ```
-Mac 시스템 소리 ─▶ Core Audio 탭 (macOS 14.2+) ─▶ Apple SpeechAnalyzer
+Mac 시스템 소리 ─▶ Core Audio 탭 (macOS 14.2+) ─▶ Apple SpeechAnalyzer (macOS 26+; 14.2~15는 예전 SFSpeechRecognizer)
                                                   ├─ 한국어 인식 (실시간 미리보기 + 확정 문장)
                                                   └─ 영어 인식 → 단어별 시간·신뢰도로 영어 인용만 살려서 끼워 넣기
                                               ─▶ 화면 + 다운로드/강의기록 (.txt, .m4a)
@@ -155,7 +155,7 @@ Mac 시스템 소리 ─▶ Core Audio 탭 (macOS 14.2+) ─▶ Apple SpeechAnal
 
 하나의 네이티브 Swift 앱입니다(AppKit + WKWebView). Apple 샌드박스 안에서 작동하며, 앱 크기는 약 17MB입니다(음성 인식 모델은 따로 내려받습니다). 직접 빌드하려면 [DEVELOPMENT.md](DEVELOPMENT.md)를 참고하십시오.
 
-**v1**은 OpenAI Whisper large-v3-turbo를 whisper.cpp로 실행하는 버전이었습니다. macOS 14.2\~15용으로 [v1.0.0 릴리스](https://github.com/WeldingArc/arc-lecture-transcriber/releases/tag/v1.0.0)에 남아 있습니다.
+**v1**([v1.0.0 릴리스](https://github.com/WeldingArc/arc-lecture-transcriber/releases/tag/v1.0.0))은 OpenAI Whisper large-v3-turbo를 whisper.cpp로 실행하는 버전이었습니다. 2.7부터는 같은 최신 앱이 macOS 14.2 이상에서 동작합니다.
 
 ## 라이선스
 

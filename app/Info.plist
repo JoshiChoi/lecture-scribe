@@ -14,7 +14,7 @@
 	<key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
-	<key>LSMinimumSystemVersion</key><string>26.0</string>
+	<key>LSMinimumSystemVersion</key><string>14.2</string>
 	<key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSAudioCaptureUsageDescription</key><string>강의 영상의 말소리를 받아 적기 위해 이 Mac에서 재생되는 소리를 녹음합니다. 마이크는 사용하지 않습니다.</string>

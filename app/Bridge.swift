@@ -25,6 +25,12 @@ protocol Platform: AnyObject {
     func openLogs()
     /// The app's language changed: menus (Mac) and the page in the new one.
     func languageChanged()
+    /// Mac: a System Settings page — "update" (Software Update), "speech" (Privacy › Speech Recognition).
+    func openPane(_ name: String)
+}
+
+extension Platform {
+    func openPane(_ name: String) {}
 }
 
 @MainActor
@@ -151,6 +157,7 @@ final class Bridge {
             if let p = body["path"] as? String, FileManager.default.fileExists(atPath: p) { platform?.reveal(URL(fileURLWithPath: p)) }
         case "pickFile": platform?.pickFile()
         case "openPrivacy": platform?.openPrivacy()
+        case "openPane": platform?.openPane(body["pane"] as? String ?? "")
         case "log": log("page: \(body["msg"] ?? "")")
 
         // ---- library

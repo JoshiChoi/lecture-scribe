@@ -24,7 +24,7 @@ cmake -S "$SRC" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -DTRANSCRIBE_BUILD_SHARED
   -DTRANSCRIBE_BUILD_TESTS=OFF -DTRANSCRIBE_BUILD_EXAMPLES=OFF -DTRANSCRIBE_BUILD_TOOLS=OFF \
   -DTRANSCRIBE_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16 \
   -DTRANSCRIBE_USE_SYSTEM_BLAS=OFF -DTRANSCRIBE_USE_OPENMP=OFF \
-  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=26.0 >/dev/null
+  -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=14.2 >/dev/null
 cmake --build "$BUILD" --config Release -j 4
 rm -rf "$OUT"; mkdir -p "$OUT/lib" "$OUT/include"
 LIBS=$(find "$BUILD" -name '*.a' | sort)
@@ -32,7 +32,7 @@ MAIN=$(echo "$LIBS" | grep '/libtranscribe\.a$')
 REST=$(echo "$LIBS" | grep -v '/libtranscribe\.a$')
 printf '_transcribe_*\n' > "$BUILD/exports.txt"
 # shellcheck disable=SC2086
-clang++ -dynamiclib -arch arm64 -mmacosx-version-min=26.0 -o "$OUT/lib/libtranscribe.dylib" \
+clang++ -dynamiclib -arch arm64 -mmacosx-version-min=14.2 -o "$OUT/lib/libtranscribe.dylib" \
   -Wl,-force_load,"$MAIN" $REST -framework Metal -framework MetalKit -framework Foundation -framework Accelerate \
   -Wl,-exported_symbols_list,"$BUILD/exports.txt" -Wl,-dead_strip -install_name @rpath/libtranscribe.dylib
 cp "$SRC/include/transcribe.h" "$OUT/include/"

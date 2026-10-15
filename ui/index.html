@@ -3198,6 +3198,10 @@
       } else if (ev.code === "capture_resumed") {
         if (noticeCode.startsWith("capture_")) $("notice").classList.remove("show");
         toast(ev.msg, 3600);
+      } else if (ev.code === "older_macos" || ev.code === "speech_unavailable") {      // macOS 14.2–15: the older recognizer
+        notice(ev.msg, [[L("소프트웨어 업데이트 열기", "Open Software Update"), () => send("openPane", { pane: "update" })]], ev.code);
+      } else if (ev.code === "speech_denied") {
+        notice(ev.msg, [[L("권한 설정 열기", "Open Privacy Settings"), () => send("openPane", { pane: "speech" })]], ev.code);
       } else if (["slides_on", "slides_note", "slides_missing"].includes(ev.code)) {
         toast(ev.msg, ev.code === "slides_on" ? 3600 : 5200);
       } else if (["busy_recording", "busy_saving", "rename", "delete", "undo"].includes(ev.code)) {

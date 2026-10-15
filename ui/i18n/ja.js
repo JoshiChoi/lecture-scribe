@@ -472,6 +472,11 @@
   "Stop Transcribing": "文字起こしを停止",
   "Downloads": "ダウンロード",
   "Documents": "書類",
-  "Desktop": "デスクトップ"
+  "Desktop": "デスクトップ",
+  "Open Software Update": "ソフトウェアアップデートを開く",
+  "Speech Recognition is turned off for this app, so it can't transcribe. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition.": "このアプリの音声認識がオフになっているため、文字起こしできません。“システム設定” › “プライバシーとセキュリティ” › “音声認識”でArc Lecture Transcriber（Arc 강의 받아쓰기）をオンにしてください。",
+  "This Mac doesn't have Apple's speech recognition for this lecture language. Turn on Dictation in System Settings › Keyboard and add this language, then try again — or update to the latest macOS.": "このMacには、この講義の言語に対応するApple音声認識がありません。“システム設定” › “キーボード”で音声入力をオンにしてこの言語を追加してから、もう一度お試しください。または最新のmacOSにアップデートしてください。",
+  "Apple's older speech recognition on this macOS · may not work well": "このmacOSの旧型のApple音声認識 · うまく動作しない場合があります",
+  "On this Mac's macOS ({0}), the app transcribes with Apple's older speech recognition, which may not work well. For better transcripts, update to the latest macOS (free).": "このMacのmacOS（{0}）では旧型のApple音声認識で文字起こしするため、うまく動作しない場合があります。より正確に文字起こしするには、最新のmacOSにアップデートしてください（無料）。"
  }
 };

@@ -9,6 +9,7 @@
 // Korean aside replaces the English model's guess only where Korean is confident Hangul and English was unsure.
 // Any other lecture language (日本語, Español, Русский…) is written by one model alone (`SoloRecognizer`): Apple's
 // long-form model where it speaks the language on this device, otherwise macOS's dictation model.
+// macOS 14.2–15 has none of these: there `ClassicRecognizer` (Apple's older speech recognition) writes every language.
 
 import AVFoundation
 import Foundation
@@ -56,6 +57,7 @@ struct EngineError: LocalizedError {
     var errorDescription: String? { message }
 }
 
+@available(macOS 26, iOS 26, *)
 @MainActor
 final class Recognizer: SpeechRecognizer {
     var onLine: ((Line) -> Void)?
@@ -558,6 +560,13 @@ struct LectureLanguage: Sendable {
 
     static func duo(_ id: String) -> Bool { id == "ko" || id == "en" }
 
+    /// Apple's long-form recognizer (SpeechAnalyzer) is here: macOS 26 or later. On macOS 14.2–15 the app transcribes
+    /// with Apple's older speech recognition (`ClassicRecognizer`); LECTURE_TEST_CLASSIC=1 does that on any macOS (tests).
+    static var modern: Bool {
+        if #available(macOS 26, iOS 26, *) { return env["LECTURE_TEST_CLASSIC"] != "1" }
+        return false
+    }
+
     /// Every language the app offers with the recognizer locales that can write it, the default first — a locale of the
     /// device's own region goes first (Mexican Spanish in Mexico, Canadian French in Canada). Chinese: Mandarin written
     /// in Simplified (China mainland) or Traditional (Taiwan) characters; Cantonese in Traditional (Hong Kong) or
@@ -599,10 +608,9 @@ struct LectureLanguage: Sendable {
     /// The lecture languages this device's recognizers speak, in catalog order (macOS is asked once per launch).
     @MainActor static func available() async -> [LectureLanguage] {
         if let k = known { return k }
+        guard #available(macOS 26, iOS 26, *), modern else { known = classic(); return known! }
         let speech = Set(await SpeechTranscriber.supportedLocales.map { $0.identifier(.bcp47) })
         let dictation = Set(await DictationTranscriber.supportedLocales.map { $0.identifier(.bcp47) })
-        let region = Locale.current.region?.identifier ?? ""
-        let latinAmerica = ["AR", "BO", "CL", "CO", "CR", "CU", "DO", "EC", "GT", "HN", "MX", "NI", "PA", "PE", "PR", "PY", "SV", "UY", "VE"]
         var out: [LectureLanguage] = []
         for (id, locales) in catalog {
             if duo(id) {                              // the two-model recognizer needs both
@@ -611,8 +619,7 @@ struct LectureLanguage: Sendable {
                 }
                 continue
             }
-            let own = locales.first { $0.hasSuffix("-" + region) } ?? (latinAmerica.contains(region) && locales.contains("es-MX") ? "es-MX" : nil)
-            let order = (own.map { [$0] } ?? []) + locales.filter { $0 != own }
+            let order = preferred(locales)
             if let l = order.first(where: speech.contains) {
                 out.append(LectureLanguage(id: id, locale: Locale(identifier: l), dictation: false))
             } else if let l = order.first(where: dictation.contains) {
@@ -623,7 +630,31 @@ struct LectureLanguage: Sendable {
         return out
     }
 
+    /// A language's locales with the device's own region first (Mexican Spanish anywhere in Latin America).
+    private static func preferred(_ locales: [String]) -> [String] {
+        let region = Locale.current.region?.identifier ?? ""
+        let latinAmerica = ["AR", "BO", "CL", "CO", "CR", "CU", "DO", "EC", "GT", "HN", "MX", "NI", "PA", "PE", "PR", "PY", "SV", "UY", "VE"]
+        let own = locales.first { $0.hasSuffix("-" + region) } ?? (latinAmerica.contains(region) && locales.contains("es-MX") ? "es-MX" : nil)
+        return (own.map { [$0] } ?? []) + locales.filter { $0 != own }
+    }
+
+    /// macOS 14.2–15: the languages Apple's older recognizer writes on this Mac without the network (their models are
+    /// here — macOS fetches them with Dictation's languages). None at all: Korean and English, and starting says why.
+    @MainActor private static func classic() -> [LectureLanguage] {
+        let supported = Set(SFSpeechRecognizer.supportedLocales().map { $0.identifier(.bcp47) })
+        var out: [LectureLanguage] = []
+        for (id, locales) in catalog {
+            let onDevice = preferred(locales).first {
+                supported.contains($0) && SFSpeechRecognizer(locale: Locale(identifier: $0))?.supportsOnDeviceRecognition == true
+            }
+            if let l = onDevice { out.append(LectureLanguage(id: id, locale: Locale(identifier: l), dictation: false)) }
+        }
+        return out.isEmpty ? [LectureLanguage(id: "ko", locale: Locale(identifier: "ko-KR"), dictation: false),
+                              LectureLanguage(id: "en", locale: Locale(identifier: "en-US"), dictation: false)] : out
+    }
+
     /// The model that writes this language; `previews`: live ("volatile") results too.
+    @available(macOS 26, iOS 26, *)
     func module(previews: Bool) -> any SpeechModule {
         dictation
             ? DictationTranscriber(locale: locale, contentHints: [], transcriptionOptions: [.punctuation],
@@ -637,6 +668,9 @@ struct LectureLanguage: Sendable {
     /// ja-JP 341 MB; the dictation model 1.1 GB (ru-RU, one of Siri's speech assets). Not `AssetInventory.status(forModules:)`:
     /// that answers for this app alone — a model another app fetched reads "supported" until this one reserves it.
     @MainActor static func downloadMB(_ list: [LectureLanguage], englishKorean: Bool) async -> [String: Int] {
+        guard #available(macOS 26, iOS 26, *), modern else {                 // the older recognizer: macOS keeps its models
+            return Dictionary(list.map { ($0.id, 0) }, uniquingKeysWith: { a, _ in a })
+        }
         let speech = Set(await SpeechTranscriber.installedLocales.map { $0.identifier(.bcp47) })
         let dictation = Set(await DictationTranscriber.installedLocales.map { $0.identifier(.bcp47) })
         func mb(_ tag: String, dictating: Bool = false) -> Int {
@@ -659,12 +693,14 @@ struct LectureLanguage: Sendable {
     /// English back behind a download.
     @MainActor static func englishWithKorean() async -> Bool {
         if env["LECTURE_TEST_ENGLISH_ALONE"] == "1" { return false }                    // tests: someone without Korean
+        guard #available(macOS 26, iOS 26, *), modern else { return false }               // the older recognizer: one language
         return await SpeechTranscriber.installedLocales.contains { $0.identifier(.bcp47) == "ko-KR" }
     }
 }
 
 /// Any other lecture language: one of Apple's models writes the transcript and its live previews — the long-form model
 /// (SpeechTranscriber) where it speaks the language, otherwise macOS's dictation model (DictationTranscriber).
+@available(macOS 26, iOS 26, *)
 @MainActor
 final class SoloRecognizer: SpeechRecognizer {
     var onLine: ((Line) -> Void)?

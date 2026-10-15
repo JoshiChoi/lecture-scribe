@@ -2,7 +2,8 @@
 
 This repo holds two generations of the app:
 
-- **v2 (current, macOS 26+ and iOS/iPadOS 26+)** — native Swift apps on Apple's on-device SpeechAnalyzer,
+- **v2 (current, macOS 14.2+ and iOS/iPadOS 26+)** — native Swift apps on Apple's on-device SpeechAnalyzer (macOS 26+;
+  on macOS 14.2–15 Apple's older SFSpeechRecognizer, see Older macOS),
   sharing the engine, the session library and the UI: `app/`, `app/ios/`, `ui/`, `project.yml`, `scripts/build_v2.sh`.
 - **v1 (macOS 14.2–15)** — Swift shell + Python engine + whisper.cpp: `native/`, `backend.py`,
   `models/`, `tools/`, `tests/`, `scripts/build_release.sh`. Released as
@@ -19,6 +20,7 @@ app/Audio.swift          audio sources → 16 kHz mono Int16: Core Audio process
                          microphone (iPhone/iPad), media files
 app/Recognizer.swift     SpeechAnalyzer with two SpeechTranscribers (ko-KR + en-US) and the English-quote rescue;
                          `SpeechRecognizer`, the interface every speech engine implements
+app/ClassicRecognizer.swift  Mac, macOS 14.2–15: Apple's older speech recognition (SFSpeechRecognizer, on the device)
 app/Whisper.swift        Mac: the optional engines — Whisper (whisper.cpp, large-v3 turbo), Qwen3-ASR and Parakeet
                          (transcribe.cpp): the engine table, model download/check/remove (`ModelStore`) and the
                          recognizer (Silero VAD segmenter, v1's language and hallucination rules, Qwen3's re-reads)
@@ -36,7 +38,7 @@ app/main.swift           Mac: AppKit window + WKWebView, menus, CLI test modes
 app/ios/App.swift        iPhone/iPad: SwiftUI scene + WKWebView, share sheet, document picker, mic permission
 app/ios/Info.plist, Assets.xcassets, PrivacyInfo.xcprivacy
                          iOS app settings (background audio, Files app sharing), icon, privacy manifest
-app/Info.plist           usage descriptions, macOS 26 minimum (build settings fill in the $(…) variables)
+app/Info.plist           usage descriptions, macOS 14.2 minimum (build settings fill in the $(…) variables)
 app/Resources/<code>.lproj/InfoPlist.strings, app/ios/<code>.lproj/InfoPlist.strings (the 12 languages)
                          the app's name and permission prompts per system language — macOS picks the .lproj (Arc 강의 받아쓰기 / Lecture
                          Transcriber); an in-app choice only pins this app's AppleLanguages (menu bar name from the next launch)
@@ -89,7 +91,8 @@ that fail their checksum), `LECTURE_MODEL_URL=<url>` + `build/v2/LectureScribe -
 download from a local server: `python3 -m http.server 8977 --directory models`; `--download-whisper` still works),
 `LECTURE_DEBUG=1` (the runtimes' logs, per-piece timings and Qwen3's re-reads in app.log).
 
-Hooks (environment variables): `LECTURE_OUT_DIR`, `LECTURE_AUTOSTART=1`, `LECTURE_AUTOSTOP=<sec>`, the tap self-heal's
+Hooks (environment variables): `LECTURE_OUT_DIR`, `LECTURE_AUTOSTART=1`, `LECTURE_AUTOSTOP=<sec>`, `LECTURE_TEST_CLASSIC=1` (the
+macOS 14.2–15 path on any macOS: Apple's older recognizer, its language list and the update notice), the tap self-heal's
 `LECTURE_TEST_TAP_TONE=1` (a tone in place of what the tap hears), `LECTURE_TEST_TAP_SILENCE` / `LECTURE_TEST_TAP_CHOP=<from>-<to>,…`
 (seconds of tap audio: all silence, or 110 ms silent pieces), `LECTURE_TEST_TAP_HEALS=<n>` (the failure ends after n new taps),
 `LECTURE_TEST_TAP_DEAD=<n>` (the next n new taps hand nothing over), `LECTURE_TEST_PLAYING=1` ("another app plays sound") —
@@ -241,6 +244,35 @@ pl, th, tr, uk …). The boot logs the list (`lecture languages: … ru-RU* …`
   language whose model is on the Mac (a missing one downloads: ja-JP ~20 s); `say -v Kyoko -o x.aiff` +
   `afconvert -f WAVE -d LEI16@16000 -c 1` makes test audio without playing it. Measured: ja-JP near-perfect on TTS;
   ru-RU (dictation) every word right, no punctuation.
+
+### Older macOS (2.7)
+
+One app for macOS 14.2 and later (14.2: the process tap's own minimum). SpeechAnalyzer and its models (`AssetInventory`)
+exist only on macOS 26+: everything that touches them is `@available(macOS 26, iOS 26, *)` and `LectureLanguage.modern`
+chooses at run time; their symbols are weak imports (the build checks that every Mach-O's minimum is 14.2, and
+whisper.cpp / transcribe.cpp are built for 14.2 too). Below 26, `ClassicRecognizer` (SFSpeechRecognizer) writes the
+transcript; the boot shows the `older_macos` notice every launch (it may not work well — update to the latest macOS,
+with a Software Update button), 설정 › 음성 인식 says the same, and `scripts/install.sh` says it before installing.
+
+- **On the device only**: every request sets `requiresOnDeviceRecognition`; the lecture languages are the catalog's
+  locales whose recognizer `supportsOnDeviceRecognition` (macOS keeps those models with Dictation's languages — on
+  macOS 27: ko, en, ru); nothing to download in the app (`fetch` marks them prepared). It needs the Speech Recognition
+  permission (asked at the first Start; denied → notice `speech_denied` with a button to that privacy pane); a language
+  whose model is missing → `speech_unavailable` (turn on Dictation, or update macOS).
+- **Pieces**: made for short dictation, so the sound goes to it in pieces cut at a pause once a piece has 20 s (0.35 s
+  under 15 % of the recent speech level; 0.15 s after 40 s; never longer than 55 s).
+- **One task at a time** (measured on macOS 27): a new recognition task ends the running one with "no speech"
+  (kAFAssistantErrorDomain 1110) — in a file only the last piece survived. The next piece's sound is held until the
+  running piece's final result is in, then goes to it at once; a file's reading waits while a minute is held (live sound
+  is never held up). A piece whose result doesn't come 20 s after its sound ended is given up (watchdog); 정지 waits
+  for the pieces in turn while they keep coming.
+- **Utterances** (measured on macOS 27): within a piece it sends each utterance once complete and timed
+  (`speechRecognitionMetadata` set) at a pause, then starts its text afresh; the final result repeats only the last
+  utterance. Each complete utterance is written at once (split into sentences by punctuation and word times; a final
+  that repeats the one just written is skipped); partial results have no word times (previews start where the last
+  utterance ended). A partial that shares nothing with the one before and is far shorter keeps the old one's text
+  (in case an older macOS restarts without the complete result).
+- Measured on macOS 27 (`LECTURE_TEST_CLASSIC=1`): tests/lecture.aiff CER 0.7 % (SpeechAnalyzer 0.7 %), 65 s in ~3 s.
 
 ### Speech engines (설정 › 음성 인식)
 

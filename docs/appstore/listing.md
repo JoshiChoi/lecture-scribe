@@ -61,8 +61,8 @@ Arc 강의 받아쓰기는 Mac에서 재생되는 온라인 강의의 내용을 
 음성 인식은 Apple의 온디바이스 음성 인식으로 Mac 안에서만 처리됩니다. 소리와 글은 어디에도 전송되지 않고, 계정도 필요 없습니다.
 
 ■ 참고 사항
-• macOS 26 이상, Apple Silicon(M1 이상) Mac
-• 처음 [시작]을 누를 때 ‘시스템 오디오 녹음’ 권한을 허용하십시오
+• macOS 14.2 이상, Apple Silicon(M1 이상) Mac — macOS 26 이상 권장(그 이전 macOS에서는 Apple의 예전 음성 인식으로 받아 적습니다)
+• 처음 [시작]을 누를 때 ‘시스템 오디오 녹음’ 권한을 허용하십시오(macOS 26 이전에서는 ‘음성 인식’ 권한도)
 
 ■ 이용 안내 및 면책
 Arc 강의 받아쓰기는 개인 학습을 돕기 위한 도구입니다.
@@ -107,8 +107,8 @@ Play a lecture in LearnUs, YouTube, Zoom or any other app and press Start. The a
 Speech recognition runs on your Mac with Apple's on-device speech recognition. Sound and text are never sent anywhere, and no account is needed.
 
 ■ Notes
-• macOS 26 or later, Mac with Apple silicon (M1 or later)
-• The first time you press Start, allow "System Audio Recording"
+• macOS 14.2 or later, Mac with Apple silicon (M1 or later) — macOS 26 or later recommended (before it, the app uses Apple's older speech recognition)
+• The first time you press Start, allow "System Audio Recording" (before macOS 26, "Speech Recognition" too)
 
 ■ Usage notice and disclaimer
 Arc Lecture Transcriber is a tool to support personal study.
@@ -120,6 +120,16 @@ Arc Lecture Transcriber is a tool to support personal study.
 • You agree to this notice the first time you open the app, and can read it again in Settings.
 
 Open source (MIT): https://github.com/WeldingArc/arc-lecture-transcriber
+
+## What's New (2.7)
+• 이제 macOS 14.2 이상의 모든 Apple Silicon Mac에서 쓸 수 있습니다. macOS 26 이전에서는 Apple의 예전 음성 인식으로 받아 적어서 잘 동작하지 않을 수 있어, 앱이 최신 macOS로 업데이트하도록 안내합니다
+• 강의가 재생되는데도 Mac의 소리가 무음으로만 들어와 받아쓰기가 도중에 멈추던 문제를 고쳤습니다(macOS 26, AirPods 등) — 이제 앱이 알아차리고 소리를 다시 받아 옵니다
+• 슬라이드 PDF를 켜고 녹음하는 중 창을 가렸다가 다시 볼 때 미리 보기가 깨져 보이던 문제를 고쳤습니다
+
+## What's New (2.7, English localization)
+• Now runs on every Apple silicon Mac with macOS 14.2 or later. Before macOS 26 it transcribes with Apple's older speech recognition, which may not work as well, so the app recommends updating to the latest macOS
+• Fixed transcripts that stopped partway because the Mac's sound came in as silence while the lecture played on (macOS 26, e.g. with AirPods) — the app now notices and gets the sound back
+• Fixed the live preview looking broken after hiding the window during a Slide PDF recording
 
 ## What's New (2.6)
 • 여러 강의 언어 — 시작 버튼 아래의 강의 언어에 ‘다른 언어’가 생겼습니다. 日本語 · 简体中文 · 繁體中文 · 粵語 · Español · Français · Deutsch · Italiano · Português · Русский · Tiếng Việt · हिन्दी · العربية 등 Apple 음성 인식이 이 Mac에서 지원하는 언어(macOS 27에서는 49개)를 검색해 고를 수 있습니다

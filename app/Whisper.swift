@@ -362,7 +362,10 @@ final class WhisperRecognizer: SpeechRecognizer {
 
     private func fallBack(_ error: Error) {
         guard takeover == nil else { return }
-        let apple = makeApple?() ?? Recognizer(main: core.major), core = self.core
+        let core = self.core, apple: SpeechRecognizer
+        if let make = makeApple { apple = make() }
+        else if #available(macOS 26, iOS 26, *), LectureLanguage.modern { apple = Recognizer(main: core.major) }
+        else { apple = ClassicRecognizer(locale: Locale(identifier: core.major == "en" ? "en-US" : "ko-KR")) }
         apple.onLine = { [weak self] in self?.onLine?($0) }
         apple.onError = { [weak self] in self?.onError?($0) }
         self.apple = apple
