@@ -401,7 +401,6 @@
   "The engine is still getting ready. Try again once it's ready.": "引擎仍在準備中。請在準備就緒後再試一次。",
   "The speech model for this lecture language is still getting ready. You can start once it's ready.": "此授課語言的語音辨識模型仍在準備中。準備就緒後即可開始。",
   "Opening the file is taking too long. If it's in iCloud or on a network, download it to this device first, then try again.": "打開檔案耗時過久。如果檔案在 iCloud 或網路上，請先下載到此裝置，然後再試一次。",
-  "This file has no sound, so it can't be transcribed.": "此檔案沒有聲音，因此無法轉錄。",
   "Can't read any sound from this file. Make sure it's an audio or video file.": "無法從此檔案讀取任何聲音。請確認這是音訊或影片檔。",
   "Couldn't capture the sound.": "無法擷取聲音。",
   "Can't create or open the file.": "無法建立或打開檔案。",
@@ -482,6 +481,8 @@
   "Apple's speech recognition isn't available on this Mac, so this lecture is recorded but not transcribed. To transcribe, turn on Siri and Dictation (Keyboard) in System Settings so this language downloads, or download the Whisper engine in Settings › Speech Recognition; then you can transcribe this recording with Open File…": "這部 Mac 無法使用 Apple 語音辨識，因此這堂課只錄音、不轉錄。若要轉錄，請在「系統設定」中開啟 Siri 和「聽寫」（鍵盤），讓這個語言下載完成，或在「設定 › 語音辨識」中下載 Whisper 引擎；之後可以用「打開檔案⋯」轉錄這段錄音。",
   "Apple's speech recognition keeps failing on this Mac, so the rest of this lecture is recorded but not transcribed. After turning on Siri and Dictation (Keyboard) in System Settings, or downloading the Whisper engine in Settings › Speech Recognition, you can transcribe this recording with Open File…": "這部 Mac 上的 Apple 語音辨識一再失敗，因此這堂課接下來只錄音、不轉錄。在「系統設定」中開啟 Siri 和「聽寫」（鍵盤），或在「設定 › 語音辨識」中下載 Whisper 引擎後，可以用「打開檔案⋯」轉錄這段錄音。",
   "Speech Recognition is turned off for this app, so this file can't be transcribed. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition, then try again.": "此 App 的「語音辨識」權限已關閉，因此無法轉錄這個檔案。請在「系統設定」›「隱私權與安全性」›「語音辨識」中開啟 Arc Lecture Transcriber（Arc 강의 받아쓰기），然後再試一次。",
-  "Apple's speech recognition isn't available on this Mac, so this file can't be transcribed. Turn on Siri and Dictation (Keyboard) in System Settings so this language downloads, or download the Whisper engine in Settings › Speech Recognition, then try again.": "這部 Mac 無法使用 Apple 語音辨識，因此無法轉錄這個檔案。請在「系統設定」中開啟 Siri 和「聽寫」（鍵盤），讓這個語言下載完成，或在「設定 › 語音辨識」中下載 Whisper 引擎，然後再試一次。"
+  "Apple's speech recognition isn't available on this Mac, so this file can't be transcribed. Turn on Siri and Dictation (Keyboard) in System Settings so this language downloads, or download the Whisper engine in Settings › Speech Recognition, then try again.": "這部 Mac 無法使用 Apple 語音辨識，因此無法轉錄這個檔案。請在「系統設定」中開啟 Siri 和「聽寫」（鍵盤），讓這個語言下載完成，或在「設定 › 語音辨識」中下載 Whisper 引擎，然後再試一次。",
+  "No sound is coming in. If the lecture video has no sound, that's fine — its slides are still collected into the PDF. If it does have sound, allow Arc Lecture Transcriber (Arc 강의 받아쓰기) in the “System Audio Recording” permission.": "沒有聲音傳入。如果課程影片本來就沒有聲音，沒關係——投影片仍會收集到 PDF 中。如果影片有聲音，請在「系統錄音」權限中允許 Arc Lecture Transcriber（Arc 강의 받아쓰기）。",
+  "This file has no sound, so it can't be transcribed. If it's a video, turn on Slide PDF and open it again to collect its slides into a PDF.": "此檔案沒有聲音，因此無法轉錄。如果它是影片，請開啟「投影片 PDF」後重新打開此檔案，即可把它的投影片收集到 PDF 中。"
  }
 };

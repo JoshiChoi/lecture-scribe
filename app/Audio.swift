@@ -23,6 +23,14 @@ protocol AudioSource: AnyObject {
     func stop()
 }
 
+/// No sound at all: a lecture video without sound (its slides are still collected) — and tests (LECTURE_FAKE_INPUT=silent).
+final class SilentSource: AudioSource {
+    var onBuffer: ((AVAudioPCMBuffer?) -> Void)?
+    var onProblem: ((String, String) -> Void)?
+    func start() throws {}
+    func stop() {}
+}
+
 /// Float32 → Int16 (the analyzer's format) without allocating a converter per buffer.
 func int16Buffer(from f: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
     let n = Int(f.frameLength)

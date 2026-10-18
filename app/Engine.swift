@@ -862,7 +862,7 @@ final class Engine {
                         let ce = error as? CaptureError
                         emit(["ev": "notice", "code": "file_error", "msg": ce?.status == -3
                               ? L("파일을 여는 데 너무 오래 걸립니다. iCloud나 네트워크에 있는 파일이면 먼저 이 기기에 내려받은 뒤 다시 시도하십시오.", "Opening the file is taking too long. If it's in iCloud or on a network, download it to this device first, then try again.")
-                              : ce?.step == "no audio track" ? L("이 파일에는 소리가 없어서 받아 적을 수 없습니다.", "This file has no sound, so it can't be transcribed.")
+                              : ce?.step == "no audio track" ? L("이 파일에는 소리가 없어서 받아 적을 수 없습니다. 영상이라면 ‘슬라이드 PDF’를 켜고 다시 열면 슬라이드만 PDF로 모을 수 있습니다.", "This file has no sound, so it can't be transcribed. If it's a video, turn on Slide PDF and open it again to collect its slides into a PDF.")
                               : L("이 파일에서 소리를 읽을 수 없습니다. 녹음이나 영상 파일인지 확인하십시오.", "Can't read any sound from this file. Make sure it's an audio or video file.")])
                     } else {
                         emit(["ev": "notice", "code": "tap_error", "msg": L("소리를 가져오지 못했습니다.", "Couldn't capture the sound.")])
@@ -1011,6 +1011,8 @@ final class Session {
     private var slideProgress: Double?
     private let slideLimit = SlideLimit()
     private var reachedEnd = false
+    /// A video without sound with 슬라이드 PDF on: nothing to transcribe — its slides only (the session ends with them).
+    private var slidesOnly = false
     private var lines: [Int: Line] = [:]
     private var written: Set<Int> = []
     private var handle: FileHandle?
@@ -1087,16 +1089,24 @@ final class Session {
             self?.engine.emit(["ev": "notice", "code": (e as? EngineError)?.code ?? "recognizer",
                                "msg": (e as? EngineError)?.message ?? L("음성 인식이 잠시 멈췄습니다. 녹음은 계속됩니다.", "Speech recognition stopped for a moment. Recording continues.")])
         }
-        try await recognizer.start()
+        if mode == .file, let f = fileURL, engine.settings.slides, await VideoSlides.hasVideo(f), !(await VideoSlides.hasAudio(f)) {
+            slidesOnly = true                         // a lecture video without sound: its slides only, no recognizer
+            duration = await VideoSlides.duration(f)
+            log("file without sound: its slides only")
+        } else {
+            try await recognizer.start()
+        }
         if stopping { return }                       // 정지 already pressed: don't open the microphone/tap at all
         let src: AudioSource
         var fileSource: FileAudioSource?
-        if mode == .file, let f = fileURL {
+        if slidesOnly {
+            src = SilentSource()
+        } else if mode == .file, let f = fileURL {
             let fs = FileAudioSource(url: f)
             fileSource = fs
             src = fs
-        } else if let fake = env["LECTURE_FAKE_INPUT"] {          // tests: a file played like live audio
-            src = FileAudioSource(url: URL(fileURLWithPath: fake), realtime: true)
+        } else if let fake = env["LECTURE_FAKE_INPUT"] {          // tests: a file played like live audio, or none at all
+            src = fake == "silent" ? SilentSource() : FileAudioSource(url: URL(fileURLWithPath: fake), realtime: true)
         } else {
             #if os(macOS)
             src = SystemAudioSource()
@@ -1160,9 +1170,17 @@ final class Session {
             c.onCount = { [weak self] n in DispatchQueue.main.async { MainActor.assumeIsolated { self?.engine.emit(["ev": "slides", "count": n]) } } }
             c.onPreview = previewSender()
             let limit = slideLimit
+            let only = slidesOnly
             slideTask = Task.detached(priority: .utility) {
                 await VideoSlides.extract(f, into: c, until: { limit.value }) { p in
                     DispatchQueue.main.async { MainActor.assumeIsolated { [weak self] in self?.slidesAdvanced(p) } }
+                }
+                if only {                                         // a video without sound ends with its last frame
+                    DispatchQueue.main.async { MainActor.assumeIsolated { [weak self] in
+                        guard let self else { return }
+                        self.reachedEnd = true
+                        if self.engine.session === self { self.engine.stop() }
+                    } }
                 }
             }
         }
@@ -1208,6 +1226,7 @@ final class Session {
 
     private func slidesAdvanced(_ p: Double) {
         slideProgress = p
+        if slidesOnly, !stopping, !closed { engine.emit(["ev": "progress", "done": p]) }     // no sound to count instead
         if stopping, !closed { engine.emit(["ev": "progress", "slides": (p * 100).rounded() / 100]) }
     }
 
@@ -1239,12 +1258,19 @@ final class Session {
             slides?.onCount = { [weak self] n in DispatchQueue.main.async { MainActor.assumeIsolated { self?.engine.emit(["ev": "slides", "count": n]) } } }
             slides?.onPreview = previewSender()
         }
-        slides?.add(image, at: Double(stats.samples) / 16000)     // audio time, like the transcript: a paused video can't shift it
+        // the detector runs on the session's clock, which moves even when no sound comes in (a lecture video without
+        // sound); the PDF dates each slide by the sound's clock, like the transcript — a paused video can't shift it
+        slides?.add(image, at: sessionClock, sound: Double(stats.samples) / 16000)
+    }
+
+    /// Seconds since the start, pauses left out.
+    private var sessionClock: Double {
+        Date().timeIntervalSince(started) - pausedTotal - (pausedSince.map { Date().timeIntervalSince($0) } ?? 0)
     }
 
     private var notified = false
     private func check() {
-        let elapsed = Date().timeIntervalSince(started) - pausedTotal - (pausedSince.map { Date().timeIntervalSince($0) } ?? 0)
+        let elapsed = sessionClock
         if paused || Date().timeIntervalSince(stats.last) > 0.6 { engine.emit(["ev": "level", "v": 0]) }
         guard !notified, !paused else { return }
         if stats.samples == 0 && elapsed > 20 {
@@ -1276,11 +1302,11 @@ final class Session {
             source?.stop()                   // a start that ends later sees the stop and does nothing
         }
         if let t = slideTask {               // a file's slides: read the video to the end — or, after 중지, as far as was transcribed
-            if !reachedEnd { slideLimit.value = Double(stats.samples) / 16000 }
+            if !reachedEnd { slideLimit.value = slidesOnly ? 0 : Double(stats.samples) / 16000 }
             await t.value
         }
         log("session finishing")
-        await recognizer.finish()
+        if !slidesOnly { await recognizer.finish() }
         closed = true
         // Rewrite the whole transcript in time order (English rescues may have updated lines).
         let finals = lines.values.filter { $0.final && !$0.text.isEmpty }.sorted { ($0.start, $0.id) < ($1.start, $1.id) }
@@ -1300,7 +1326,8 @@ final class Session {
         }
         var slideCount = 0
         if let c = slides {                  // the slide PDF, next to the transcript (with what was said per slide)
-            let lines = finals.map { ($0.start, $0.end, $0.text) }, txt = txtURL, end = seconds, layout = engine.settings.pdfLayout
+            let end = seconds > 0 ? seconds : slidesOnly ? duration : mode == .live ? sessionClock : seconds   // no sound: how long it ran
+            let lines = finals.map { ($0.start, $0.end, $0.text) }, txt = txtURL, layout = engine.settings.pdfLayout
             let clean = engine.settings.cleanCapture                     // as the switch is when the lecture ends: the whole PDF
             slideCount = await Task.detached(priority: .userInitiated) { c.makePDF(transcript: txt, lines: lines, end: end, layout: layout, clean: clean) }.value
         }
