@@ -22,10 +22,10 @@
 | Screenshots (2880×1800), plain app screens | docs/appstore/screenshots/2.6.0/ko/ (Korean store) and docs/appstore/screenshots/2.6.0/en/ (English store): 01-start, 02-live, 03-library, 04-playback, 05-saved, 06-slide-pdf, 07-settings, 08-language, 09-lecture-languages (render: tools/shot.swift; demo data only) |
 
 ## Promotional text
-강의를 틀고 시작만 누르면 됩니다. Mac 안에서 바로 받아 적고, 강의마다 녹음과 글을 ‘기록’에 모아 줍니다. 인터넷 전송 없음 · 무료.
+강의를 틀고 시작만 누르면 됩니다. Mac 안에서 바로 받아 적고, 강의마다 녹음과 글을 ‘기록’에 모아 줍니다. 소리와 글은 Mac 밖으로 나가지 않습니다.
 
 ## Keywords
-받아쓰기,강의,녹취,음성인식,필기,녹음,요약,STT,강의노트,다국어,자막
+받아쓰기,강의,녹취,음성인식,필기,녹음,슬라이드,STT,강의노트,다국어,자막
 
 ## Description
 Arc 강의 받아쓰기는 Mac에서 재생되는 온라인 강의의 내용을 실시간으로 받아 적어 주는 앱입니다. 강의 자료가 없어도 괜찮습니다 — 슬라이드가 넘어갈 때마다 화면을 담아, 그때 한 말과 함께 PDF 노트로 만들어 줍니다.
@@ -38,6 +38,7 @@ Arc 강의 받아쓰기는 Mac에서 재생되는 온라인 강의의 내용을 
 • 깔끔하게 담기 — 주소창·플레이어·검은 여백은 빼고 슬라이드만 담습니다
 • 강의자 카메라는 스스로 찾아 테두리로 표시하고 슬라이드 인식에서 제외합니다
 • 슬라이드마다 화면에서 읽은 제목과 책갈피가 붙어, 원하는 장으로 바로 이동할 수 있습니다
+• 슬라이드에 적힌 글자도 PDF에 담겨, 검색하고 복사할 수 있습니다
 • PDF 형식은 가로 · 두 파일 · A4 한 쪽 중에서 고릅니다
 • 받아 적는 동안 PDF에 담기는 부분을 빨간 테두리로 바로 보여 줍니다
 
@@ -49,10 +50,10 @@ Arc 강의 받아쓰기는 Mac에서 재생되는 온라인 강의의 내용을 
 • 쉬는 시간에는 [일시정지] — 그동안의 소리는 녹음하지 않고, [계속]을 누르면 이어서 받아 적습니다
 • 텍스트(.txt)와 녹음(.m4a)은 다운로드 폴더의 ‘강의기록’에도 그대로 저장됩니다
 • 1.5배·2배속 재생도 따라갑니다
-• [전체 복사] 한 번이면 ChatGPT·Claude 같은 AI에 붙여 넣어 요약·정리
+• [전체 복사] 한 번으로 받아 적은 글 전체를 복사
 • 영어로 말하는 부분은 영어 그대로 적습니다 (일부러 번역하지 않습니다)
 • 여러 강의 언어 — 한국어 · English 외에도 日本語 · 中文 · 粵語 · Español · Français · Deutsch · Italiano · Português · Русский · Tiếng Việt 등 Apple 음성 인식이 이 Mac에서 지원하는 언어의 강의를 받아 적습니다 (‘다른 언어’에서 검색해 고르고, 모델이 Mac에 없는 언어는 크기를 먼저 알려 준 뒤 Apple의 음성 인식 모델을 내려받습니다)
-• 음성 인식 엔진 선택 — 기본은 Apple, 원하면 공개 모델 Qwen3-ASR(약 1.5GB, 한국어·영어가 섞인 강의에 강합니다)·Whisper(약 575MB)·Parakeet(약 540MB, 영어 강의 전용)를 한 번 내려받아 Mac 안에서 사용합니다 (내려받는 엔진은 한국어·영어 강의에 쓰입니다)
+• Mac에 들어 있는 Apple 음성 인식으로 받아 적습니다 (원하면 설정에서 다른 받아쓰기 엔진을 추가로 고를 수도 있습니다)
 • 중요 문장 표시 — ‘출석’, ‘시험’, ‘과제’ 같은 단어가 나온 문장에 밑줄을 긋고 파일 끝에 따로 모아 줍니다. 단어는 직접 바꿀 수 있습니다
 • 녹음·영상 파일을 끌어다 놓아도 받아 적습니다 (재생 시간보다 훨씬 빨리)
 • 12개 언어 화면 — 한국어 · English · 简体中文 · 繁體中文 · 日本語 · Español · Français · Deutsch · Português (Brasil) · Italiano · Tiếng Việt · Русский (Mac의 언어를 따르며 — 지원하지 않는 언어이면 영어 — 첫 화면의 지구본이나 설정에서 바꿉니다)
@@ -76,7 +77,7 @@ Arc 강의 받아쓰기는 개인 학습을 돕기 위한 도구입니다.
 오픈소스(MIT)입니다: https://github.com/WeldingArc/arc-lecture-transcriber
 
 ## Promotional text (English localization)
-Play a lecture and press Start. Arc Lecture Transcriber writes it down live, right on your Mac, and keeps each lecture's recording and transcript in your Library. Free.
+Play a lecture and press Start. Arc Lecture Transcriber writes it down live, right on your Mac, and keeps each lecture's recording and transcript in your Library. Nothing leaves your Mac.
 
 ## Keywords (English localization)
 transcribe,lecture,notes,speech to text,captions,student,recording,dictation,class,study,STT
@@ -95,12 +96,12 @@ Play a lecture in LearnUs, YouTube, Zoom or any other app and press Start. The a
 • Pause during breaks — nothing is recorded meanwhile, and Resume carries on
 • The text (.txt) and the recording (.m4a) are also saved in a folder in your Downloads
 • Keeps up with lectures played at 1.5× or 2×
-• Copy All, then paste into an AI chat such as ChatGPT or Claude to summarize
+• Copy All copies the whole transcript in one click
 • Nothing is translated on purpose — in a Korean lecture English stays English, and in an English lecture Korean stays Korean once the Korean model is on your Mac
 • Many lecture languages — besides Korean and English, lectures in Japanese, Chinese, Cantonese, Spanish, French, German, Italian, Portuguese, Russian, Vietnamese and every other language Apple's speech recognition offers on your Mac (search the list under Other; for a language whose model isn't on your Mac, the app shows the size first, then downloads Apple's speech model)
-• Choose the speech engine — Apple's by default, or download an open model once and run it on your Mac: Qwen3-ASR (about 1.5 GB, best for lectures that mix Korean and English), Whisper (about 575 MB) or Parakeet (about 540 MB, English lectures only); the downloadable engines are used for Korean and English lectures
+• Transcribes with the speech recognition built into macOS (other on-device engines can be added in Settings, if you like)
 • Drop an audio or video file onto the window to transcribe it, much faster than real time
-• Slide PDF — when there are no lecture notes, the slides are collected each time they change, with what was said, into a PDF (you choose the lecture window). The lecturer's camera is found and left out of slide detection, and Clean Capture keeps only the slide — no browser bar, player or black borders. Choose a Landscape, Two Files or A4 layout; every slide gets the title read from the screen and a bookmark
+• Slide PDF — when there are no lecture notes, the slides are collected each time they change, with what was said, into a PDF (you choose the lecture window). The lecturer's camera is found and left out of slide detection, and Clean Capture keeps only the slide — no browser bar, player or black borders. Choose a Landscape, Two Files or A4 layout; every slide gets the title read from the screen and a bookmark, and the slides' text goes into the PDF too, so you can search and copy it
 • 12 interface languages — 한국어 · English · 简体中文 · 繁體中文 · 日本語 · Español · Français · Deutsch · Português (Brasil) · Italiano · Tiếng Việt · Русский; it follows your Mac's language and the globe on the start screen switches it
 
 ■ Privacy
