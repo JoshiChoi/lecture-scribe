@@ -577,7 +577,8 @@ with its text normalization on it stops after the first sentence.
   area (content running past the edge), or when it has content of its own outside the area that most pages don't share
   (`pageSpecific`: pixels that change on many pages, such as a video's controls, don't count). Titles read from the full
   picture are kept inside the area and measured against it. The live preview shows the area as it stands after each kept
-  slide; the PDF works it out again from the files. Harnesses in the session scratchpad: real frames from LearnUs
+  slide; the PDF works it out again from the files. Its boxes mark a box near an edge with `at-top` / `left` — never `top`,
+  the header's class: its dark fade then covered the slide (fixed in 2.7.3). Harnesses in the session scratchpad: real frames from LearnUs
   recordings, nine synthetic scenes (camera known/unknown/moving, a title band, a dark slide, a camera on the slide,
   photos, two slides, a white player, a Zoom strip), 24 adversarial scenes from a separate review (slide headers,
   footers, logos and page numbers, sidebars, dark and mixed-width slides, a camera over the slide, a video inside a

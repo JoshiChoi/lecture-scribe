@@ -129,6 +129,7 @@ Open source (MIT): https://github.com/WeldingArc/arc-lecture-transcriber
 • 이제 macOS 14.2 이상의 모든 Apple Silicon Mac에서 쓸 수 있습니다. macOS 26 이전에서는 Apple의 예전 음성 인식으로 받아 적어서 잘 동작하지 않을 수 있어, 앱이 최신 macOS로 업데이트하도록 안내합니다. 받아 적을 수 없을 때도 강의는 녹음되며, 그 이유와 방법을 알려 줍니다
 • 강의가 재생되는데도 Mac의 소리가 무음으로만 들어와 받아쓰기가 도중에 멈추던 문제를 고쳤습니다(macOS 26, AirPods 등) — 이제 앱이 알아차리고 소리를 다시 받아 옵니다
 • 슬라이드 PDF를 켜고 녹음하는 중 창을 가렸다가 다시 볼 때 미리 보기가 깨져 보이던 문제를 고쳤습니다
+• 슬라이드가 강의 창 맨 위에 붙어 있을 때 미리 보기가 어두운 그라데이션에 가려지던 문제를 고쳤습니다 — 이제 PDF에 담기는 화면이 끝까지 다 보입니다
 
 ## What's New (2.7, English localization)
 • Slide PDF now works for lecture videos without sound too — slides are captured from the screen changes alone
@@ -136,6 +137,7 @@ Open source (MIT): https://github.com/WeldingArc/arc-lecture-transcriber
 • Now runs on every Apple silicon Mac with macOS 14.2 or later. Before macOS 26 it transcribes with Apple's older speech recognition, which may not work as well, so the app recommends updating to the latest macOS. When it can't transcribe, the lecture is still recorded and the app says why and what to do
 • Fixed transcripts that stopped partway because the Mac's sound came in as silence while the lecture played on (macOS 26, e.g. with AirPods) — the app now notices and gets the sound back
 • Fixed the live preview looking broken after hiding the window during a Slide PDF recording
+• Fixed the live preview being hidden under a dark fade when the slide sits at the very top of the lecture window — what goes into the PDF is now in full view
 
 ## What's New (2.6)
 • 여러 강의 언어 — 시작 버튼 아래의 강의 언어에 ‘다른 언어’가 생겼습니다. 日本語 · 简体中文 · 繁體中文 · 粵語 · Español · Français · Deutsch · Italiano · Português · Русский · Tiếng Việt · हिन्दी · العربية 등 Apple 음성 인식이 이 Mac에서 지원하는 언어(macOS 27에서는 49개)를 검색해 고를 수 있습니다
