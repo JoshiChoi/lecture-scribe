@@ -1004,7 +1004,11 @@ final class SlideCollector: @unchecked Sendable {
     private let reader = DispatchQueue(label: "lecture.slides.titles", qos: .background)
     private let readLock = NSLock()
     private var read: [Int: [SlideTitles.Found]] = [:]
-    private var timeline: [(slide: Int, from: Double)] = []
+    private var timeline: [(slide: Int, from: Double, sound: Double?)] = []
+    /// Live: each frame's time on the session's clock (what the detector runs on — it must move even when no sound comes
+    /// in) and on the sound's clock (what the transcript and the PDF use); `heard`: some sound came in at all.
+    private var clock: [(t: Double, sound: Double)] = []
+    private var heard = false
     private var count = 0
     private var closed = false
     /// Each kept slide in small, its size, where the camera was and what was moving then: 깔끔하게 담기 works out the
@@ -1025,20 +1029,27 @@ final class SlideCollector: @unchecked Sendable {
         try Data(transcript.path.utf8).write(to: dir.appendingPathComponent("transcript.path"))
     }
 
-    /// Any thread; frames are handled in order on the collector's own queue.
-    func add(_ image: CGImage, at t: Double) {
+    /// Any thread; frames are handled in order on the collector's own queue. `t`: the session's time (files: the video's);
+    /// `sound`: live, the sound's time then — a slide is dated by it in the PDF, like the transcript; with no sound at all
+    /// (a lecture video without sound), by the session's time.
+    func add(_ image: CGImage, at t: Double, sound: Double? = nil) {
         queue.async { [self] in
             guard !closed, let sig = Signature(image) else { return }
+            if let sound {
+                clock.append((t, sound))
+                if sound > 0 { heard = true }
+                if clock.count > 4000 { clock.removeFirst(1000) }          // the last half hour at 2 fps
+            }
             let ev = detector.step(t, sig)
             if let ev {
                 switch ev {
                 case .new(let i, let since):
                     save(image, i, sig)
-                    timeline.append((i, since))
+                    timeline.append((i, since, soundTime(since)))
                     count += 1
                     onCount?(count)
                 case .again(let i, let since):
-                    if timeline.last?.slide != i { timeline.append((i, since)) }
+                    if timeline.last?.slide != i { timeline.append((i, since, soundTime(since))) }
                 case .update(let i):
                     save(image, i, sig)
                 }
@@ -1079,8 +1090,14 @@ final class SlideCollector: @unchecked Sendable {
         }
     }
 
+    /// The sound's time at a time on the session's clock (the frame then, or the first one).
+    private func soundTime(_ t: Double) -> Double? {
+        guard !clock.isEmpty else { return nil }
+        return (clock.last { $0.t <= t } ?? clock[0]).sound
+    }
+
     private func writeTimeline() {
-        let rows = timeline.map { "\($0.slide)\t\($0.from)" }.joined(separator: "\n")
+        let rows = timeline.map { "\($0.slide)\t\(heard ? ($0.sound ?? $0.from) : $0.from)" }.joined(separator: "\n")
         try? Data(rows.utf8).write(to: dir.appendingPathComponent("timeline.tsv"), options: .atomic)
     }
 
@@ -1138,6 +1155,16 @@ enum VideoSlides {
     /// Does the file have a picture at all?
     static func hasVideo(_ url: URL) async -> Bool {
         ((try? await AVURLAsset(url: url).loadTracks(withMediaType: .video)) ?? []).isEmpty == false
+    }
+
+    /// Does it have sound? (A lecture video without sound gets its slides only.)
+    static func hasAudio(_ url: URL) async -> Bool {
+        ((try? await AVURLAsset(url: url).loadTracks(withMediaType: .audio)) ?? []).isEmpty == false
+    }
+
+    static func duration(_ url: URL) async -> Double {
+        let d = (try? await AVURLAsset(url: url).load(.duration).seconds) ?? 0
+        return d.isFinite ? d : 0
     }
 
     /// Reads one frame per second into the collector, up to `until()` seconds (중지 part-way: as far as it was transcribed).
@@ -1438,17 +1465,18 @@ enum SlidesPDF {
         func part(_ u: URL) -> URL { u.deletingLastPathComponent().appendingPathComponent(".\(u.lastPathComponent).part") }
         var made: [(part: URL, dest: URL, marks: [(String, Int)])] = []
         let ok: Bool
+        let quiet = deck.said == 0              // nothing was said at all (a lecture video without sound): the slides alone
         switch layout {
         case "split":
             let text = transcriptPDF(for: transcript)
             if let a = writeLandscape(deck, to: part(pdfURL), withText: false) { made.append((part(pdfURL), pdfURL, a)) }
-            if let b = writeTranscript(deck, to: part(text)) { made.append((part(text), text, b)) }
-            ok = made.count == 2
+            if !quiet, let b = writeTranscript(deck, to: part(text)) { made.append((part(text), text, b)) }
+            ok = made.count == (quiet ? 1 : 2)
         case "classic":
             if let a = writeClassic(deck, to: part(pdfURL)) { made.append((part(pdfURL), pdfURL, a)) }
             ok = made.count == 1
         default:
-            if let a = writeLandscape(deck, to: part(pdfURL), withText: true) { made.append((part(pdfURL), pdfURL, a)) }
+            if let a = writeLandscape(deck, to: part(pdfURL), withText: !quiet, cover: true) { made.append((part(pdfURL), pdfURL, a)) }
             ok = made.count == 1
         }
         if !ok || cancelled() {                                             // 슬라이드 PDF was turned off meanwhile
@@ -1599,12 +1627,12 @@ enum SlidesPDF {
     }
 
     /// `landscape`: a cover, then each slide filling its page with what was said on the page after it.
-    /// `withText: false` (the `split` layout's first file): only the slides.
-    private static func writeLandscape(_ deck: Deck, to url: URL, withText: Bool) -> [(String, Int)]? {
+    /// `withText: false` (the `split` layout's first file, or nothing was said): only the slides — with the cover if `cover`.
+    private static func writeLandscape(_ deck: Deck, to url: URL, withText: Bool, cover: Bool? = nil) -> [(String, Int)]? {
         let firstBox = wideBox(deck.slides[0].image)
         guard let ctx = context(url, firstBox, deck, keywords: true) else { return nil }
         var pageNo = 0, marks: [(String, Int)] = []
-        if withText {                                                      // cover: what this is, and the first slide
+        if cover ?? withText {                                             // cover: what this is, and the first slide
             begin(ctx, firstBox); pageNo += 1
             let m: CGFloat = 56, colW = firstBox.width * 0.46
             line(ctx, text(L("강 의 노 트", "LECTURE NOTES"), font(10, "Regular"), accent, kern: 2), at: CGPoint(x: m, y: firstBox.height - 96))
@@ -1714,8 +1742,9 @@ enum SlidesPDF {
         footer(ctx, deck.title, pageNo)
         ctx.endPDFPage()
 
+        let quiet = deck.said == 0                                           // nothing said at all: the slides alone
         for s in deck.slides {                                               // one page (or more) per slide
-            let said = saidText(s.lines, size: 10.5)
+            let said = quiet ? NSAttributedString() : saidText(s.lines, size: 10.5)
             var start = 0, isFirst = true
             repeat {
                 ctx.beginPDFPage(nil); pageNo += 1
@@ -1739,7 +1768,7 @@ enum SlidesPDF {
                     ctx.setStrokeColor(hairline); ctx.setLineWidth(0.6)
                     ctx.addPath(CGPath(roundedRect: r, cornerWidth: 5, cornerHeight: 5, transform: nil)); ctx.strokePath()
                     textTop = r.minY - 26
-                    line(ctx, text(L("이 슬라이드에서 한 말", "Said during this slide"), font(8.5, "Regular"), muted, kern: 0.8), at: CGPoint(x: margin, y: textTop + 2))
+                    if !quiet { line(ctx, text(L("이 슬라이드에서 한 말", "Said during this slide"), font(8.5, "Regular"), muted, kern: 0.8), at: CGPoint(x: margin, y: textTop + 2)) }
                     textTop -= 14
                 }
                 let area = CGRect(x: margin, y: 54, width: page.width - margin * 2, height: max(40, textTop - 54))

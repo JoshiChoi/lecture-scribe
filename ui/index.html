@@ -3223,6 +3223,10 @@
       } else if (ev.code === "session_missing") {
         toast(ev.msg, 3600);
         closeDetail();
+      } else if (ev.code === "no_input" && $("sl").checked) {          // 슬라이드 PDF: a lecture video may have no sound
+        notice(L("소리가 들어오지 않습니다. 소리가 없는 강의 영상이라면 괜찮습니다 — 슬라이드는 계속 PDF로 모읍니다. 소리가 있는 강의라면 ‘시스템 오디오 녹음’ 권한에서 Arc 강의 받아쓰기를 허용하십시오.",
+                 "No sound is coming in. If the lecture video has no sound, that's fine — its slides are still collected into the PDF. If it does have sound, allow Arc Lecture Transcriber (Arc 강의 받아쓰기) in the “System Audio Recording” permission."),
+               [[L("권한 설정 열기", "Open Privacy Settings"), () => send("openPrivacy")]]);
       } else if (ev.code === "no_input") {
         notice(L("아직 소리가 들어오지 않습니다. 강의 영상을 재생하십시오. ", "No sound is coming in yet. Play the lecture video. ")
              + L("영상이 재생 중인데도 이 메시지가 계속 보이면 ‘시스템 오디오 녹음’ 권한에서 Arc 강의 받아쓰기를 허용하십시오.", "If this message keeps appearing while the video is playing, allow Arc Lecture Transcriber (Arc 강의 받아쓰기) in the “System Audio Recording” permission."),

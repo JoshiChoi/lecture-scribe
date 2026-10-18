@@ -39,6 +39,7 @@ Arc 강의 받아쓰기는 Mac에서 재생되는 온라인 강의의 내용을 
 • 강의자 카메라는 스스로 찾아 테두리로 표시하고 슬라이드 인식에서 제외합니다
 • 슬라이드마다 화면에서 읽은 제목과 책갈피가 붙어, 원하는 장으로 바로 이동할 수 있습니다
 • 슬라이드에 적힌 글자도 PDF에 담겨, 검색하고 복사할 수 있습니다
+• 소리가 없는 강의 영상도 화면이 바뀌는 것만으로 슬라이드 PDF를 만듭니다
 • PDF 형식은 가로 · 두 파일 · A4 한 쪽 중에서 고릅니다
 • 받아 적는 동안 PDF에 담기는 부분을 빨간 테두리로 바로 보여 줍니다
 
@@ -101,7 +102,7 @@ Play a lecture in LearnUs, YouTube, Zoom or any other app and press Start. The a
 • Many lecture languages — besides Korean and English, lectures in Japanese, Chinese, Cantonese, Spanish, French, German, Italian, Portuguese, Russian, Vietnamese and every other language Apple's speech recognition offers on your Mac (search the list under Other; for a language whose model isn't on your Mac, the app shows the size first, then downloads Apple's speech model)
 • Transcribes with the speech recognition built into macOS (other on-device engines can be added in Settings, if you like)
 • Drop an audio or video file onto the window to transcribe it, much faster than real time
-• Slide PDF — when there are no lecture notes, the slides are collected each time they change, with what was said, into a PDF (you choose the lecture window). The lecturer's camera is found and left out of slide detection, and Clean Capture keeps only the slide — no browser bar, player or black borders. Choose a Landscape, Two Files or A4 layout; every slide gets the title read from the screen and a bookmark, and the slides' text goes into the PDF too, so you can search and copy it
+• Slide PDF — when there are no lecture notes, the slides are collected each time they change, with what was said, into a PDF (you choose the lecture window). The lecturer's camera is found and left out of slide detection, and Clean Capture keeps only the slide — no browser bar, player or black borders. Choose a Landscape, Two Files or A4 layout; every slide gets the title read from the screen and a bookmark, and the slides' text goes into the PDF too, so you can search and copy it. It works from the screen alone, so a lecture video without sound still gets its slide PDF
 • 12 interface languages — 한국어 · English · 简体中文 · 繁體中文 · 日本語 · Español · Français · Deutsch · Português (Brasil) · Italiano · Tiếng Việt · Русский; it follows your Mac's language and the globe on the start screen switches it
 
 ■ Privacy
@@ -123,12 +124,14 @@ Arc Lecture Transcriber is a tool to support personal study.
 Open source (MIT): https://github.com/WeldingArc/arc-lecture-transcriber
 
 ## What's New (2.7)
+• 소리가 없는 강의 영상도 슬라이드 PDF로 모읍니다 — 화면이 바뀌는 것만으로 슬라이드를 담습니다
 • 슬라이드 PDF에 슬라이드의 글자도 담깁니다 — Mac 안에서 읽어 넣으므로 PDF에서 검색하고 복사할 수 있습니다(슬라이드 모양은 그대로)
 • 이제 macOS 14.2 이상의 모든 Apple Silicon Mac에서 쓸 수 있습니다. macOS 26 이전에서는 Apple의 예전 음성 인식으로 받아 적어서 잘 동작하지 않을 수 있어, 앱이 최신 macOS로 업데이트하도록 안내합니다. 받아 적을 수 없을 때도 강의는 녹음되며, 그 이유와 방법을 알려 줍니다
 • 강의가 재생되는데도 Mac의 소리가 무음으로만 들어와 받아쓰기가 도중에 멈추던 문제를 고쳤습니다(macOS 26, AirPods 등) — 이제 앱이 알아차리고 소리를 다시 받아 옵니다
 • 슬라이드 PDF를 켜고 녹음하는 중 창을 가렸다가 다시 볼 때 미리 보기가 깨져 보이던 문제를 고쳤습니다
 
 ## What's New (2.7, English localization)
+• Slide PDF now works for lecture videos without sound too — slides are captured from the screen changes alone
 • The Slide PDF now carries the slides' text too — read on your Mac, so you can search and copy it in the PDF (the slides look the same)
 • Now runs on every Apple silicon Mac with macOS 14.2 or later. Before macOS 26 it transcribes with Apple's older speech recognition, which may not work as well, so the app recommends updating to the latest macOS. When it can't transcribe, the lecture is still recorded and the app says why and what to do
 • Fixed transcripts that stopped partway because the Mac's sound came in as silence while the lecture played on (macOS 26, e.g. with AirPods) — the app now notices and gets the sound back

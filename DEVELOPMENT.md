@@ -98,7 +98,7 @@ macOS 14.2–15 path on any macOS: Apple's older recognizer, its language list a
 (seconds of tap audio: all silence, or 110 ms silent pieces), `LECTURE_TEST_TAP_HEALS=<n>` (the failure ends after n new taps),
 `LECTURE_TEST_TAP_DEAD=<n>` (the next n new taps hand nothing over), `LECTURE_TEST_PLAYING=1` ("another app plays sound") —
 the app logs them as read (`capture: test switches — …`);
-`LECTURE_FAKE_INPUT=<file>` (the file streamed in real time instead of system audio — silent),
+`LECTURE_FAKE_INPUT=<file>` (the file streamed in real time instead of system audio — silent; `=silent`: no sound at all),
 `LECTURE_DEV_DIR=<checkout>` (UI from the checkout), `LECTURE_DEBUG=1` (English-phrase decisions on
 stderr), `LECTURE_TEST_OPEN=library|<session>|trash:<session>|delete:<session>` (the page opens 기록 or a
 session; `trash:` deletes and undoes it, `delete:` deletes it — the page logs what it rendered),
@@ -504,7 +504,7 @@ with its text normalization on it stops after the first sentence.
   elsewhere (at most two compact groups of marks, each only vanished or only appeared, while a pointer has been about),
   a ticking timer, subtitles, or an earlier step of a stored slide (the current slide included). A page is dated to
   when its slide appeared — back over frames that show it with only a pointer elsewhere — not to when it was decided;
-  live frames are timed by the audio clock. Files use 1 frame/s with a 1 s settle (live: 2 fps, 1.5 s), so a slide on
+  live frames are timed by the session's clock (it moves even when no sound comes in — a lecture video without sound; 2.7.2), and each slide is dated in the PDF by the sound's clock like the transcript (`SlideCollector.add(…, sound:)`), or by the session's when no sound came in at all. A file with a picture but no sound, with 슬라이드 PDF on, is read for its slides only (no recognizer; the session ends with the video's last frame; 중지 stops there); with 슬라이드 PDF off it is refused with how to get its slides. When nothing was said at all, the PDF is the cover and the slides alone (split: no transcript PDF; A4: no "said during this slide"). Files use 1 frame/s with a 1 s settle (live: 2 fps, 1.5 s), so a slide on
   screen for less than \~2.5 s live or \~3 s in a file can be missed.
   Known limits: a single changed character in body text (one revised digit in a table cell) is usually invisible at
   this resolution, so the page keeps the earlier version (several characters are caught); if a player's controls or a
