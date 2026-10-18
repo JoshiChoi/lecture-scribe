@@ -353,11 +353,7 @@
     position: relative; overflow: hidden; line-height: 0; background: #05070c; border-radius: 12px; pointer-events: auto;
     box-shadow: 0 18px 50px var(--shadow), 0 0 0 1px var(--line-2);
   }
-  .stage .lv-frame {                                              /* its lower edge fades into the transcript */
-    border-radius: 14px;
-    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 87%, rgba(0, 0, 0, 0.4) 95%, transparent);
-    mask-image: linear-gradient(to bottom, #000 0, #000 87%, rgba(0, 0, 0, 0.4) 95%, transparent);
-  }
+  .stage .lv-frame { border-radius: 14px; }                       /* all of it in sight, down to the red frame's lower edge */
   .lv-frame > img { display: block; width: 100%; height: 100%; }
   .cc-box, .cam-box {
     position: absolute; display: none; font-style: normal; pointer-events: none;
@@ -403,10 +399,11 @@
   }
   .lv-tag i { width: 6px; height: 6px; border-radius: 50%; background: rgb(var(--cc-rgb)); box-shadow: 0 0 8px rgb(var(--cc-rgb)); animation: lv-dot 1.6s ease-in-out infinite; }
   @keyframes lv-dot { 50% { opacity: 0.35; } }
-  .cc-box.top .lv-tag { bottom: auto; top: 8px; left: 8px; }      /* no room above: inside the frame */
+  .cc-box.at-top .lv-tag { bottom: auto; top: 8px; left: 8px; }   /* no room above: inside the frame (not "top": that's the
+                                                                     header's class, and its dark fade would cover the slide) */
   .cam-box .lv-tag { left: auto; right: -1px; border-color: rgba(255, 255, 255, 0.55); box-shadow: 0 0 14px rgba(255, 255, 255, 0.3); }
   .cam-box .lv-tag i { background: #fff; box-shadow: 0 0 8px #fff; animation: none; }
-  .cam-box.top .lv-tag { bottom: auto; top: calc(100% + 8px); }
+  .cam-box.at-top .lv-tag { bottom: auto; top: calc(100% + 8px); }
   .cam-box.left .lv-tag { right: auto; left: -1px; }
   .lv-scan { position: absolute; inset: 0; display: none; overflow: hidden; pointer-events: none; }
   .lv.finding .lv-scan { display: block; }
@@ -432,7 +429,8 @@
   .stage .lv-bar.tight .lv-state { display: none; }
   .stage.small .lv-tag { display: none; }                         /* a small picture: the boxes speak for themselves */
   .stage .lv-chip { background: rgba(var(--tint-rgb), 0.06); color: var(--ink-2); border-color: var(--line-2); }
-  body.live-on.view-screen .cuechip { top: calc(var(--stage-top, 130px) + var(--stage-h, 46vh) - 46px); }   /* a caption on the picture's edge */
+  body.live-on.view-screen .cuechip { top: calc(var(--stage-top, 130px) + var(--stage-h, 46vh) - 24px); }   /* a caption just under the picture */
+  body.live-on.view-screen:has(.cuechip.show) main { padding-top: calc(var(--stage-top, 130px) + var(--stage-h, 46vh) + 14px); }   /* and the lines under it */
   .lv-chip {
     display: inline-flex; align-items: center; gap: 7px; height: 27px; padding: 0 11px; border-radius: 999px; white-space: nowrap;
     font-size: 11.5px; font-weight: 400; letter-spacing: 0.02em; color: #f3f4f7; pointer-events: auto;
@@ -1766,12 +1764,12 @@
             cc.style.transition = "none"; place(cc, [0.01, 0.01, 0.98, 0.98]); void cc.offsetWidth; cc.style.transition = "";
           }
           place(cc, this.clean);
-          cc.classList.toggle("top", this.clean[1] < 0.09);
+          cc.classList.toggle("at-top", this.clean[1] < 0.09);
         }
         if (this.cam) {
           if (!this.seen.cam) { cb.style.transition = "none"; place(cb, this.cam); void cb.offsetWidth; cb.style.transition = ""; cb.classList.remove("found"); void cb.offsetWidth; cb.classList.add("found"); }
           else place(cb, this.cam);
-          cb.classList.toggle("top", this.cam[1] < 0.09);
+          cb.classList.toggle("at-top", this.cam[1] < 0.09);
           cb.classList.toggle("left", this.cam[0] + this.cam[2] / 2 < 0.5);
         }
         v.querySelector(".lv-cc").checked = on;
