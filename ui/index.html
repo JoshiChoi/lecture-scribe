@@ -220,7 +220,7 @@
     padding: 120px 24px 220px; pointer-events: none;
     transition: opacity 0.5s ease;
   }
-  body.has-text .empty { opacity: 0; }
+  body:is(.has-text, .recording, .finishing) .empty { opacity: 0; }   /* lines on screen, or a recording under way: nothing to start */
   .wave { width: 120px; height: 36px; margin-bottom: 30px; opacity: 0.85; }
   .wave path { fill: none; stroke: var(--accent); stroke-width: 1.2; stroke-linecap: round; }
   /* start screen: a lecture on screen (the mic on iPhone/iPad) → its sound → transcript lines writing themselves.
@@ -243,7 +243,7 @@
   .hero .h-caret { animation: h-caret 9s steps(1) 3; }
   .hero.ios { width: 188px; }                 /* the mic is narrower than the laptop: viewBox cropped to stay centred */
   .hero.ios .mac, .hero:not(.ios) .ios { display: none; }
-  body.has-text .hero * { animation-play-state: paused; }
+  body:is(.has-text, .recording, .finishing) .hero * { animation-play-state: paused; }
   @media (max-height: 700px) { .hero { width: 170px; height: 46px; margin-bottom: 22px; } .hero.ios { width: 135px; } }
   @media (max-height: 620px) { .hero { display: none; } }          /* a short window keeps the words clear of header and dock */
   /* one cycle: drawn (0–30%), lines fade (30–38%), write in one by one (42–79%), drawn again (79–100%) */
@@ -265,6 +265,23 @@
     letter-spacing: -0.01em; color: var(--ink);
   }
   .empty p { margin-top: 18px; font-size: 14.5px; font-weight: 300; color: var(--muted); line-height: 1.75; word-break: keep-all; }
+  /* a live recording with nothing written yet (before anyone speaks, or a lecture video without sound): the start screen
+     has gone, and a quiet line waits where the first sentence will appear */
+  .waiting { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 18px 16px 0; text-align: center; pointer-events: none;
+             margin-bottom: -80px; }   /* no room of its own: it sits in the transcript's bottom padding, and nothing scrolls for it */
+  body.live-rec:not(.paused):not(.has-text) .waiting { display: flex; animation: rise 0.6s ease 0.6s both; }
+  /* about the middle of the free space, never below it (the transcript's padding: 150 px above, 230 px below — 330 px
+     beside the 글 card; the line itself takes about 80) */
+  body:not(.live-on.view-screen) .waiting { margin-top: clamp(0px, 50vh - 260px, 100vh - var(--top-extra) - var(--sab) - var(--dock-extra, 0px) - 460px); }
+  @media (min-width: 820px) and (min-height: 561px) {
+    body.live-on.view-text .waiting { margin-top: clamp(0px, 50vh - 260px, 100vh - var(--top-extra) - var(--sab) - var(--dock-extra, 0px) - 560px); }
+  }
+  .waiting .wave { width: 76px; height: 23px; margin: 0; opacity: 0.6; }
+  .waiting .wave path { stroke-width: 1.7; }
+  .waiting p { font-size: 14px; font-weight: 300; letter-spacing: 0.04em; color: var(--muted); }
+  body.live-on.view-screen .waiting { flex-direction: row; gap: 10px; padding-top: 12px; }   /* one row under the picture: */
+  body.live-on.view-screen .waiting .wave { width: 44px; height: 14px; }                     /* no scrolling for it */
+  body.live-on.view-screen .waiting .wave path { stroke-width: 2.6; }
 
   .divider {
     text-align: center; margin: 20px auto; font-size: 12px; letter-spacing: 0.18em; text-indent: 0.18em;
@@ -571,7 +588,7 @@
   }
   .lectmenu[hidden] { display: none; }
   #empty { transition: opacity 0.2s; }
-  body.lect-open #empty { opacity: 0.12; }               /* the card has the stage: no headline fragments beside it */
+  body.lect-open:not(.has-text, .recording, .finishing) #empty { opacity: 0.12; }   /* the card has the stage: no headline fragments beside it */
   @keyframes lectmenu-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   .lm-find {
     flex: none; margin: 8px 8px 4px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line-2);
@@ -1161,6 +1178,7 @@
       <div class="dl"><div class="dlbar"><i id="dlfill"></i></div><span id="dltext">AI 모델 내려받는 중</span></div>
     </div>
     <article id="transcript" aria-live="polite"></article>
+    <div class="waiting" id="waiting"><svg class="wave" viewBox="0 0 120 36" aria-hidden="true"><path d="M2 18 C 12 18, 14 6, 22 6 S 32 30, 40 30 S 50 10, 58 10 S 66 24, 74 24 S 84 14, 92 14 S 104 18, 118 18"/></svg><p>말소리를 기다리는 중</p></div>
   </main>
 
   <button class="latest" id="latest">↓ 최신 문장으로</button>
@@ -1532,6 +1550,7 @@
     "두 곡선이 만나는 점": "Where the two curves meet",
     "두 곡선이 만나는 점이 균형입니다.": "The point where the two curves meet is the equilibrium.",
     "라이트": "Light",
+    "말소리를 기다리는 중": "Waiting for speech",
     "문장 앞에 강의 시간을 붙입니다": "Adds the lecture time before each sentence",
     "문제 신고용 로그 폴더": "Log Folder for Reporting Problems",
     "미리 보기 — 오늘 출석 확인 문구는 푸른 하늘 은하수입니다.": "Preview — Today's attendance phrase is “Milky Way.”",
@@ -1976,7 +1995,7 @@
     $("pauseBtn").querySelector("svg").innerHTML = paused ? '<path d="M0 0 8 5 0 10z"/>' : '<path d="M0 0h2.6v10H0zM5.4 0H8v10H5.4z"/>';
     $("pauseBtn").title = paused ? L("이어서 받아 적기 (⌘P)", "Resume transcribing (⌘P)") : L("잠시 멈추기 (⌘P) — 그동안의 소리는 녹음하지 않습니다", "Pause (⌘P) — nothing is recorded in the meantime");
     $("rec").title = state.rec === "recording" ? L("받아쓰기 정지 (⌘R)", "Stop transcribing (⌘R)") : ready ? L("받아쓰기 시작 (⌘R)", "Start transcribing (⌘R)") : "";
-    body.classList.toggle("has-text", state.segs.size > 0 || !!state.saved);
+    body.classList.toggle("has-text", state.segs.size > 0 || !!(state.saved && state.saved.txt));   // an accidental start/stop saves nothing
   }
 
   function nearBottom() {

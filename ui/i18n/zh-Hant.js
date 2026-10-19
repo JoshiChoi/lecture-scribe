@@ -483,6 +483,7 @@
   "Speech Recognition is turned off for this app, so this file can't be transcribed. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition, then try again.": "此 App 的「語音辨識」權限已關閉，因此無法轉錄這個檔案。請在「系統設定」›「隱私權與安全性」›「語音辨識」中開啟 Arc Lecture Transcriber（Arc 강의 받아쓰기），然後再試一次。",
   "Apple's speech recognition isn't available on this Mac, so this file can't be transcribed. Turn on Siri and Dictation (Keyboard) in System Settings so this language downloads, or download the Whisper engine in Settings › Speech Recognition, then try again.": "這部 Mac 無法使用 Apple 語音辨識，因此無法轉錄這個檔案。請在「系統設定」中開啟 Siri 和「聽寫」（鍵盤），讓這個語言下載完成，或在「設定 › 語音辨識」中下載 Whisper 引擎，然後再試一次。",
   "No sound is coming in. If the lecture video has no sound, that's fine — its slides are still collected into the PDF. If it does have sound, allow Arc Lecture Transcriber (Arc 강의 받아쓰기) in the “System Audio Recording” permission.": "沒有聲音傳入。如果課程影片本來就沒有聲音，沒關係——投影片仍會收集到 PDF 中。如果影片有聲音，請在「系統錄音」權限中允許 Arc Lecture Transcriber（Arc 강의 받아쓰기）。",
-  "This file has no sound, so it can't be transcribed. If it's a video, turn on Slide PDF and open it again to collect its slides into a PDF.": "此檔案沒有聲音，因此無法轉錄。如果它是影片，請開啟「投影片 PDF」後重新打開此檔案，即可把它的投影片收集到 PDF 中。"
+  "This file has no sound, so it can't be transcribed. If it's a video, turn on Slide PDF and open it again to collect its slides into a PDF.": "此檔案沒有聲音，因此無法轉錄。如果它是影片，請開啟「投影片 PDF」後重新打開此檔案，即可把它的投影片收集到 PDF 中。",
+  "Waiting for speech": "正在等待語音"
  }
 };
