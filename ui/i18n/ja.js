@@ -483,6 +483,7 @@
   "Speech Recognition is turned off for this app, so this file can't be transcribed. Turn on Arc Lecture Transcriber (Arc 강의 받아쓰기) in System Settings › Privacy & Security › Speech Recognition, then try again.": "このアプリの音声認識がオフになっているため、このファイルを文字起こしできません。“システム設定” › “プライバシーとセキュリティ” › “音声認識”でArc Lecture Transcriber（Arc 강의 받아쓰기）をオンにしてから、もう一度お試しください。",
   "Apple's speech recognition isn't available on this Mac, so this file can't be transcribed. Turn on Siri and Dictation (Keyboard) in System Settings so this language downloads, or download the Whisper engine in Settings › Speech Recognition, then try again.": "このMacではApple音声認識を使用できないため、このファイルを文字起こしできません。“システム設定”でSiriと音声入力（キーボード）をオンにしてこの言語をダウンロードするか、設定 › 音声認識でWhisperエンジンをダウンロードしてから、もう一度お試しください。",
   "No sound is coming in. If the lecture video has no sound, that's fine — its slides are still collected into the PDF. If it does have sound, allow Arc Lecture Transcriber (Arc 강의 받아쓰기) in the “System Audio Recording” permission.": "音声が入ってきていません。音声のない講義動画なら問題ありません——スライドは引き続きPDFにまとめます。音声のある講義なら、“システムオーディオ録音”でArc Lecture Transcriber（Arc 강의 받아쓰기）を許可してください。",
-  "This file has no sound, so it can't be transcribed. If it's a video, turn on Slide PDF and open it again to collect its slides into a PDF.": "このファイルには音声がないため、文字起こしできません。動画であれば、“スライドPDF”をオンにしてもう一度開くと、スライドだけをPDFにまとめられます。"
+  "This file has no sound, so it can't be transcribed. If it's a video, turn on Slide PDF and open it again to collect its slides into a PDF.": "このファイルには音声がないため、文字起こしできません。動画であれば、“スライドPDF”をオンにしてもう一度開くと、スライドだけをPDFにまとめられます。",
+  "Waiting for speech": "話し声を待っています"
  }
 };

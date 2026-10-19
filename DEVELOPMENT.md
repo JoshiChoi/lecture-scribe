@@ -475,6 +475,11 @@ with its text normalization on it stops after the first sentence.
   not recorded, not on the clock — and the first buffer after pausing becomes 1.5 s of silence for both the recognizer
   and the recording, so the sentence before the break ends there and the transcript's times stay the recording's
   times. Slide frames are ignored meanwhile. The page's clock leaves the paused time out.
+- The start screen (illustration, "강의 영상을 재생하고 시작을 누르십시오") is for an idle window with nothing on it: it goes
+  at 시작 (files too) and comes back after an accidental start/stop, which saves nothing. A live recording with nothing written
+  yet — before anyone speaks, or a lecture video without sound — shows `말소리를 기다리는 중` where the first sentence will
+  appear (`#waiting`: mid-window in 글 and without 슬라이드 PDF, one row under the picture in 화면; not while paused). It
+  takes no room of its own, so the page never scrolls for it.
 - 글 편집 (`saveLines`: the page sends every line; `linesSaved`): the transcript is written again — header, lines, the
   중요 문장 tail made again — and the recording is untouched; a slide PDF keeps its text. An emptied line is removed.
   ⌘F in a session marks every match (`find`), Return / ⇧Return step through them.
